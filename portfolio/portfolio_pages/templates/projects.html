@@ -3,5 +3,21 @@
 {% block title %} Projects page {% endblock %}
 
 {% block content %}
-<h1 class= "text-center">View my projects here!</h1>
-{% endblock  %}
+<h1 class="text-center">View my projects here!</h1>
+
+<div class="d-flex flex-wrap gap-3 justify-content-center"> 
+
+  {% for project in projects %}  
+  <div class="card" style="width: 18rem;">
+    <img src="{{ project.images.first.image.url }}" class="card-img-top" alt="{{ project.title }}">
+    <div class="card-body">
+      <h5 class="card-title">{{ project.title }}</h5>
+      <p class="card-text">{{ project.content }}</p>  
+      <a href="#" class="btn btn-primary">View more</a>
+    </div>
+  </div>
+  {% endfor %}  
+
+</div>
+
+{% endblock %}

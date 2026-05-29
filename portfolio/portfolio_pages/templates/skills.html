@@ -4,4 +4,18 @@
 
 {% block content %}
 <h1 class= "text-center">My profeciency</h1>
+
+<div class="d-flex flex-wrap gap-3 justify-content-center"> 
+
+  {% for skill in skills %}  
+  <div class="" style="width: 18rem;">
+    <img src="{{ skill.image.url }}" class="img-fluid" alt="{{ skill.title }}">
+    <div class="card-body">
+      <h5 class="card-title, text-center">{{ skill.title }}</h5>
+      <p class="card-text, text-center">{{ skill.description }}</p>  
+    </div>
+  </div>
+  {% endfor %}  
+
+</div>
 {% endblock  %}

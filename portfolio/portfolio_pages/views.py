@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from .models import About_me
+from .models import About_me, MY_Project, My_skill
 
 def index(request):
     about = About_me.objects.first()
@@ -9,7 +9,9 @@ def contact(request):
     return render(request, 'contact.html')
 
 def projects(request):
-    return render(request, 'projects.html')
+    project = MY_Project.objects.all()
+    return render(request, 'projects.html', {"projects": project})
 
 def skills(request):
-    return render(request, 'skills.html')
+    skill = My_skill.objects.all()
+    return render(request, 'skills.html', {"skills": skill})
