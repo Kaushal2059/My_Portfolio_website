@@ -1,14 +1,14 @@
 {% extends "layout.html" %}
 
-{% block title %} Contact page {% endblock %}
-
+{% block title %} Add skill page{% endblock %}
 {% block content %}
-<h1 class= "text-center">Contact me</h1>
-<form action="" method = "POST">
+<h1 class= "text-center">Add a new skill</h1>
+<form method = "POST" enctype="multipart/form-data">
     {% csrf_token %}
     {{ form.as_p }}
     <button class= "btn-primary" type= "Submit">
         Submit
     </button>
 </form>
-{% endblock  %}
+
+{% endblock %}

@@ -13,6 +13,7 @@ class About_me(models.Model):
         return self.title
     
 class MY_Project(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, default = 1)
     title = models.CharField(max_length=100)
     content = models.TextField(max_length=240)
     created_at = models.DateTimeField(auto_now_add=True)  # fix: auto_now_add for created
@@ -37,6 +38,7 @@ class ProjectImage(models.Model):
         return f"Image for {self.project.title}"
     
 class My_skill(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, default = 1)
     title = models.CharField(max_length=100)
     description = models.TextField(max_length=250)
     image = models.ImageField(upload_to='photos/')

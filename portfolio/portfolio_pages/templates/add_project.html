@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+
+{% block title %} Add Project page{% endblock %}
+{% block content %}
+<h1 class= "text-center">Add a new Project</h1>
+<form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    {{ form.as_p }}
+
+    <label>Project Images</label>
+    <input type="file" name="images" multiple>
+
+    <button type="submit">Submit</button>
+</form>
+{% endblock %}
