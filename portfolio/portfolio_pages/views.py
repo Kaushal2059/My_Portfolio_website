@@ -3,6 +3,8 @@ from .models import About_me, MY_Project, My_skill, ProjectImage
 from .forms import ContactForm, Add_skillForm, Add_ProjectForm
 from django.shortcuts import get_object_or_404, redirect
 import sweetify
+from django.conf import settings
+from django.core.mail import send_mail
 
 def index(request):
     about = About_me.objects.first()
@@ -24,7 +26,35 @@ def contact(request):
         form = ContactForm(request.POST, request.FILES)
 
         if form.is_valid():
-            form.save()
+            submit = form.save()
+
+            # --- Build the email ---
+            role_display = submit.get_You_are_display()  # converts 's' → 'Student' etc.
+            subject = f"New Contact Form submit from {submit.Name}"
+            message = f"""
+You have a new contact form submit on your portfolio.
+
+-----------------------------
+Name    : {submit.Name}
+Email   : {submit.Your_email}
+Role    : {role_display}
+-----------------------------
+
+Message:
+{submit.Message}
+
+Submitted at: {submit.created_at.strftime("%B %d, %Y at %I:%M %p")}
+            """
+
+            # --- Send the email ---
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[settings.ADMIN_EMAIL],
+                fail_silently=True,   # Won't crash the site if email fails
+            )
+
             sweetify.success(request, "Your form has been submitted succesfully.")
             return redirect('contact')
 
