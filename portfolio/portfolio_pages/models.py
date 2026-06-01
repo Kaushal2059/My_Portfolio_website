@@ -45,3 +45,15 @@ class My_skill(models.Model):
 
     def __str__(self):
         return self.title
+    
+class Contact(models.Model):
+    Name = models.CharField(max_length = 100)
+    Your_email = models.EmailField(blank=False, null= False, max_length=254)
+    Role = [("s","Student"), ("e", "Employer"), ("o","others")]
+    You_are = models.CharField(choices=Role, max_length=1)
+    Message =models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)  # fix: auto_now_add for created
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.Name} wants to say -------- {self.Message[:50]}"

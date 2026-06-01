@@ -14,6 +14,10 @@
       <h5 class="card-title, text-center">{{ skill.title }}</h5>
       <p class="card-text, text-center">{{ skill.description }}</p>  
     </div>
+    {% if skill.user == user %}
+    <a href="{% url 'edit_skill' skill.id %}" class="btn btn-primary">Edit</a>
+    <a href="{% url 'delete_skill' skill.id %}" class="btn btn-danger">Delete</a>
+    {% endif %}
   </div>
   {% endfor %}  
 
