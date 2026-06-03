@@ -55,7 +55,7 @@ Submitted at: {submit.created_at.strftime("%B %d, %Y at %I:%M %p")}
                 fail_silently=True,   # Won't crash the site if email fails
             )
 
-            sweetify.success(request, "Your form has been submitted succesfully.")
+            sweetify.success(request, "Your message has reached to Kaushal succesfully.")
             return redirect('contact')
 
     else:

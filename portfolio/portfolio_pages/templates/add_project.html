@@ -1,16 +1,38 @@
 {% extends "layout.html" %}
+{% load static %}
 
-{% block title %} Add Project page{% endblock %}
+{% block title %}Add Project{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'pages/addprojects.css' %}">
+{% endblock %}
+
 {% block content %}
-<h1 class= "text-center">Add a new Project</h1>
-<form method="POST" enctype="multipart/form-data">
-    {% csrf_token %}
+<div class="ap-wrap">
+  <div class="ap-inner">
+    <div class="ap-eyebrow">— New / Entry</div>
+    <h1 class="ap-title">Add a project, <em>no pressure.</em></h1>
+    <p class="ap-sub">Drop the details below. You can always edit, rewrite, or delete it later.</p>
 
-    {{ form.as_p }}
+    <form method="POST" enctype="multipart/form-data" class="ap-form">
+      {% csrf_token %}
 
-    <label>Project Images</label>
-    <input type="file" name="images" multiple>
+      {{ form.as_p }}
 
-    <button type="submit">Submit</button>
-</form>
+      <div class="ap-field">
+        <label for="images">Project Images</label>
+        <div class="ap-file">
+          <div class="ap-file-plus" aria-hidden="true">+</div>
+          <div class="ap-file-hint">Click or drop files</div>
+          <input id="images" type="file" name="images" multiple aria-label="Upload project images">
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-submit">Publish →</button>
+        <a href="{% url 'projects' %}" class="btn-cancel">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}

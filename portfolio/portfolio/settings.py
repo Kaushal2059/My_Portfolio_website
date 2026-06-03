@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from decouple import config
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -66,6 +68,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'portfolio_pages.context_processors.social_links',
             ],
         },
     },
@@ -139,3 +142,7 @@ EMAIL_HOST_PASSWORD = os.getenv('password')   # Gmail App Password (16 chars)
 DEFAULT_FROM_EMAIL = os.getenv('Email')
 
 ADMIN_EMAIL = os.getenv('Email')           # Where you want to receive notifications
+
+LINKEDIN_URL = config('LINKEDIN_URL')
+FACEBOOK_URL = config('FACEBOOK_URL')
+INSTAGRAM_URL = config('INSTAGRAM_URL')

@@ -1,29 +1,55 @@
 {% extends "layout.html" %}
+{% load static %}
 
-{% block title %} Skills page {% endblock %}
+{% block title %}Skills{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'pages/skills.css' %}">
+{% endblock %}
 
 {% block content %}
-<h1 class= "text-center">My profeciency</h1>
-
-<div class="d-flex flex-wrap gap-3 justify-content-center"> 
-
-  {% for skill in skills %}  
-  <div class="" style="width: 18rem;">
-    <img src="{{ skill.image.url }}" class="img-fluid" alt="{{ skill.title }}">
-    <div class="card-body">
-      <h5 class="card-title, text-center">{{ skill.title }}</h5>
-      <p class="card-text, text-center">{{ skill.description }}</p>  
+<div class="sk-wrap">
+  <div class="sk-inner">
+    <div class="sk-head">
+      <div>
+        <div class="sk-eyebrow">— Index / Proficiency</div>
+        <h1 class="sk-title">Things I'm <em>good enough</em> at.</h1>
+      </div>
+      <div class="sk-count">
+        {{ skills|length }}
+        {% if skills|length == 1 %}skill{% else %}skills{% endif %}
+      </div>
     </div>
-    {% if skill.user == user %}
-    <a href="{% url 'edit_skill' skill.id %}" class="btn btn-primary">Edit</a>
-    <a href="{% url 'delete_skill' skill.id %}" class="btn btn-danger">Delete</a>
-    {% endif %}
-  </div>
-  {% endfor %}  
 
+    <div class="sk-grid">
+      {% for skill in skills %}
+        <div class="sk-item">
+          <span class="sk-num">{{ forloop.counter|stringformat:"02d" }}</span>
+          <div class="sk-thumb">
+            {% if skill.image %}
+              <img src="{{ skill.image.url }}" alt="{{ skill.title }}">
+            {% else %}
+              <span class="sk-thumb-empty" aria-hidden="true">∅</span>
+            {% endif %}
+          </div>
+          <h2 class="sk-name">{{ skill.title }}</h2>
+          <p class="sk-desc">{{ skill.description }}</p>
+          {% if skill.user == user %}
+            <div class="sk-owner">
+              <a href="{% url 'edit_skill' skill.id %}"   class="sk-chip">Edit</a>
+              <a href="{% url 'delete_skill' skill.id %}" class="sk-chip danger">Delete</a>
+            </div>
+          {% endif %}
+        </div>
+      {% empty %}
+        <div class="sk-empty">Nothing here yet.</div>
+      {% endfor %}
+
+      <a href="{% url 'add_skill' %}" class="sk-add">
+        <div class="plus" aria-hidden="true">+</div>
+        <span>Add a skill</span>
+      </a>
+    </div>
+  </div>
 </div>
-<div class="mt-auto p-3 justify-content-center " style="width: 18rem;">
-    <a href="{% url 'add_skill' %}" class="btn btn-outline-success">
-    Add a skill
-</a>
-{% endblock  %}
+{% endblock %}

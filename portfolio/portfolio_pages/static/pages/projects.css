@@ -1,0 +1,207 @@
+/* =============================================================
+   PROJECTS.CSS
+   ============================================================= */
+
+.pp-wrap {
+  color: var(--bone);
+  min-height: 100vh;
+  padding: 9rem 1.5rem 8rem;
+}
+
+.pp-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.pp-eyebrow {
+  font-size: .72rem;
+  letter-spacing: .3em;
+  text-transform: uppercase;
+  color: var(--fog);
+  margin-bottom: 1.25rem;
+}
+
+.pp-title {
+  font-family: "Instrument Serif", "Times New Roman", serif;
+  font-weight: 400;
+  font-size: clamp(2.75rem, 6vw, 5rem);
+  line-height: .95;
+  letter-spacing: -.02em;
+  margin: 0 0 1rem;
+}
+.pp-title em { font-style: italic; color: var(--fog); }
+
+.pp-sub {
+  color: var(--fog);
+  max-width: 42ch;
+  font-size: 1rem;
+  margin-bottom: 4rem;
+}
+
+/* ----- Grid ----- */
+.pp-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+/* ----- Card ----- */
+.pp-card {
+  position: relative;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: transform .4s ease, border-color .4s ease;
+  display: flex;
+  flex-direction: column;
+}
+.pp-card:hover {
+  transform: translateY(-4px);
+  border-color: #3a3a40;
+}
+
+.pp-thumb {
+  aspect-ratio: 4/3;
+  overflow: hidden;
+  background: var(--ink-3);
+  position: relative;
+}
+.pp-thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  filter: grayscale(.25) brightness(.92);
+  transition: filter .5s ease, transform .6s ease;
+}
+.pp-card:hover .pp-thumb img {
+  filter: none;
+  transform: scale(1.04);
+}
+
+.pp-thumb-empty {
+  width: 100%; height: 100%;
+  display: grid;
+  place-items: center;
+  color: #2e2e34;
+  font-size: 3rem;
+  font-family: "Instrument Serif", serif;
+}
+
+.pp-num {
+  position: absolute;
+  top: .85rem; left: .9rem;
+  font-size: .7rem;
+  color: var(--bone);
+  letter-spacing: .2em;
+  background: rgba(0,0,0,.45);
+  backdrop-filter: blur(6px);
+  padding: .25rem .55rem;
+  border-radius: 999px;
+}
+
+.pp-body {
+  padding: 1.25rem 1.25rem 1.4rem;
+}
+
+.pp-name {
+  font-family: "Instrument Serif", serif;
+  font-weight: 400;
+  font-size: 1.5rem;
+  line-height: 1.15;
+  margin: 0 0 .5rem;
+}
+
+.pp-text {
+  color: var(--fog);
+  font-size: .9rem;
+  line-height: 1.55;
+  margin: 0 0 1.2rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: center;
+}
+
+.pp-link {
+  color: var(--bone);
+  text-decoration: none;
+  font-size: .85rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 2px;
+  transition: color .25s, border-color .25s;
+}
+.pp-link:hover { color: var(--acid); border-color: var(--acid); }
+
+.pp-link .arrow {
+  display: inline-block;
+  transition: transform .25s;
+}
+.pp-link:hover .arrow { transform: translateX(4px); }
+
+.pp-owner {
+  margin-left: auto;
+  display: flex;
+  gap: .4rem;
+}
+
+.pp-chip {
+  font-size: .7rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--fog);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: .3rem .65rem;
+  text-decoration: none;
+  transition: all .25s;
+}
+.pp-chip:hover        { color: var(--bone);    border-color: var(--bone); }
+.pp-chip.danger:hover { color: var(--danger);  border-color: var(--danger); }
+
+/* ----- Add card ----- */
+.pp-add {
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 3rem 1.5rem;
+  color: var(--fog);
+  text-decoration: none;
+  transition: color .3s, border-color .3s, background .3s;
+  min-height: 260px;
+}
+.pp-add:hover {
+  color: var(--acid);
+  border-color: var(--acid);
+  background: rgba(200,255,77,.03);
+}
+.pp-add .plus {
+  font-size: 2.5rem;
+  line-height: 1;
+  margin-bottom: .75rem;
+  font-weight: 200;
+}
+.pp-add span {
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  font-size: .75rem;
+}
+
+/* ----- Empty state ----- */
+.pp-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--fog);
+  padding: 4rem 1rem;
+  font-family: "Instrument Serif", serif;
+  font-size: 1.5rem;
+}

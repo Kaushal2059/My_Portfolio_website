@@ -1,0 +1,98 @@
+/* =============================================================
+   ADD_PROJECT.CSS
+   ============================================================= */
+
+.ap-wrap {
+  color: var(--bone);
+  min-height: 100vh;
+  padding: 9rem 1.5rem 8rem;
+}
+
+.ap-inner {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.ap-eyebrow {
+  font-size: .72rem;
+  letter-spacing: .3em;
+  text-transform: uppercase;
+  color: var(--fog);
+  margin-bottom: 1.25rem;
+}
+
+.ap-title {
+  font-family: "Instrument Serif", "Times New Roman", serif;
+  font-weight: 400;
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  line-height: .95;
+  letter-spacing: -.02em;
+  margin: 0 0 .75rem;
+}
+.ap-title em { font-style: italic; color: var(--fog); }
+
+.ap-sub {
+  color: var(--fog);
+  max-width: 48ch;
+  margin: 0 0 3.5rem;
+}
+
+/* ----- Form ----- */
+.ap-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.ap-form p,
+.ap-field {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .55rem;
+}
+
+.ap-form label,
+.ap-form p label {
+  font-size: .72rem;
+  letter-spacing: .25em;
+  text-transform: uppercase;
+  color: var(--fog);
+}
+
+/* ----- File drop zone ----- */
+.ap-file {
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 2rem 1.25rem;
+  text-align: center;
+  color: var(--fog);
+  cursor: pointer;
+  transition: border-color .25s, color .25s, background .25s;
+  position: relative;
+}
+.ap-file:hover {
+  border-color: var(--acid);
+  color: var(--acid);
+  background: rgba(200,255,77,.03);
+}
+
+.ap-file input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.ap-file-plus {
+  font-size: 1.75rem;
+  font-weight: 200;
+  line-height: 1;
+  margin-bottom: .5rem;
+}
+
+.ap-file-hint {
+  font-size: .72rem;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}

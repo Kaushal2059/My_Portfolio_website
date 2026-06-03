@@ -1,14 +1,29 @@
 {% extends "layout.html" %}
+{% load static %}
 
-{% block title %} Add skill page{% endblock %}
+{% block title %}Add Skill{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'pages/add_skills.css' %}">
+{% endblock %}
+
 {% block content %}
-<h1 class= "text-center">Add a new skill</h1>
-<form method = "POST" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button class= "btn-primary" type= "Submit">
-        Submit
-    </button>
-</form>
+<div class="as-wrap">
+  <div class="as-inner">
+    <div class="as-eyebrow">— New / Skill</div>
+    <h1 class="as-title">Add a skill, <em>quietly.</em></h1>
+    <p class="as-sub">Name the thing, sketch the vibe, upload an image if you've got one.</p>
 
+    <form method="POST" enctype="multipart/form-data" class="as-form">
+      {% csrf_token %}
+
+      {{ form.as_p }}
+
+      <div class="form-actions">
+        <button type="submit" class="btn-submit">Publish →</button>
+        <a href="{% url 'skills' %}" class="btn-cancel">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}

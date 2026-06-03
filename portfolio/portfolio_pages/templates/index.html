@@ -1,22 +1,73 @@
 {% extends "layout.html" %}
 {% load static %}
 
-{% block title %} Index page {% endblock %}
+{% block title %}Home{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'pages/index.css' %}">
+{% endblock %}
 
 {% block content %}
-<h1 class = "text-center">This is the home page</h1>
-<section class="about-section">
-    <div class="about-container">
+<div class="hp-wrap">
 
-        <div class="about-content">
-            <h2>{{ about.title }}</h2>
-            <p>{{ about.content }}</p>
-        </div>
-
-        <div class="about-image">
-            <img src="{{ about.image.url }}" alt="{{ about.title }}">
-        </div>
-
+  <section class="hp-hero">
+    <div class="hp-eyebrow">Available for new work — 2026</div>
+    <h1 class="hp-headline">Builder of <em>quiet, useful</em> things.</h1>
+    <p class="hp-tagline">
+      A small archive of work, skills, and things I've made along the way. Have a look around.
+    </p>
+    <div class="hp-cta-row">
+      <a href="#about" class="hp-cta">About me →</a>
+      <a href="{% url 'projects' %}" class="hp-cta-ghost">See projects</a>
     </div>
-</section>
-{% endblock  %}
+  </section>
+
+  <div class="hp-ticker" aria-hidden="true">
+    <div class="hp-ticker-track">
+      <span>Design</span><span>Code</span><span>Build</span><span>Ship</span>
+      <span>Repeat</span><span>Design</span><span>Code</span><span>Build</span>
+      <span>Ship</span><span>Repeat</span>
+    </div>
+  </div>
+
+  <section class="hp-about" id="about">
+    <div class="hp-about-eyebrow">About</div>
+    <div class="hp-about-grid">
+      <div>
+        <h2 class="hp-about-title">{{ about.title|default:"A few words about me." }}</h2>
+        <p class="hp-about-text">{{ about.content|default:"Add an about entry from the admin to populate this section." }}</p>
+      </div>
+      <div class="hp-about-image">
+        {% if about.image %}
+          <img src="{{ about.image.url }}" alt="{{ about.title }}">
+        {% else %}
+          <div class="hp-about-image-empty" aria-hidden="true">∅</div>
+        {% endif %}
+        <span class="hp-image-tag">— Portrait</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="hp-nav-grid" aria-label="Site sections">
+    <a href="{% url 'projects' %}" class="hp-nav-card">
+      <span class="hp-nav-num">01 / Works</span>
+      <span class="hp-nav-title">Projects</span>
+      <span class="hp-nav-desc">Things I've built, broken, and rebuilt.</span>
+      <span class="hp-nav-arrow" aria-hidden="true">↗</span>
+    </a>
+    <a href="{% url 'skills' %}" class="hp-nav-card">
+      <span class="hp-nav-num">02 / Proficiency</span>
+      <span class="hp-nav-title">Skills</span>
+      <span class="hp-nav-desc">Tools and crafts I'm good enough at.</span>
+      <span class="hp-nav-arrow" aria-hidden="true">↗</span>
+    </a>
+    <a href="{% url 'contact' %}" class="hp-nav-card">
+      <span class="hp-nav-num">03 / Reach out</span>
+      <span class="hp-nav-title">Contact</span>
+      <span class="hp-nav-desc">Say hi, pitch a project, or just chat.</span>
+      <span class="hp-nav-arrow" aria-hidden="true">↗</span>
+    </a>
+  </section>
+
+</div>
+{% endblock %}
