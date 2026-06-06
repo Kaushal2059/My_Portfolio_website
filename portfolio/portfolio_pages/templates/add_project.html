@@ -19,11 +19,15 @@
 
       {{ form.as_p }}
 
+      <div class = "ap-field">
+        <label for="tech_stack">Tech used</label>
+        <input type="text" id = "tech_stack" name= "tech_stack" placeholder = "python, django, Bootstrap">
+      </div>
       <div class="ap-field">
         <label for="images">Project Images</label>
         <div class="ap-file">
           <div class="ap-file-plus" aria-hidden="true">+</div>
-          <div class="ap-file-hint">Click or drop files</div>
+          <div class="ap-file-hint">Add a imge for of your project</div>
           <input id="images" type="file" name="images" multiple aria-label="Upload project images">
         </div>
       </div>

@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from .models import About_me, MY_Project, My_skill, ProjectImage
+from .models import About_me, MY_Project, My_skill, ProjectImage, Projecttech_stack
 from .forms import ContactForm, Add_skillForm, Add_ProjectForm
 from django.shortcuts import get_object_or_404, redirect
 import sweetify
@@ -110,8 +110,20 @@ def add_project(request):
                     project=project,
                     image=image
                 )
+            
+            tech = request.POST.get("tech_stack")
+
+            for techs in tech.split(","):
+                techs = techs.strip()
+
+                if techs:
+                    Projecttech_stack.objects.create(
+                        project=project,
+                        tech_stack=techs
+                    )
 
             return redirect('projects')
+            
     else:
         form = Add_ProjectForm()
     return render(request, "add_project.html", {'form':form})
@@ -124,10 +136,20 @@ def edit_project(request, project_id):
             project = form.save(commit=False)
             project.user = request.user
             project.save()
+
+            tech = request.POST.get("tech_stack")
+            if tech:
+                for techs in tech.split(","):
+                    techs = techs.strip()
+                    if techs:
+                        Projecttech_stack.objects.create(
+                            project=project,
+                            tech_stack=techs
+                        )
             return redirect('projects')
     else:
         form = Add_ProjectForm(instance=project)
-    return render(request, 'add_project.html', {'form': form})
+    return render(request, 'add_project.html', {'form': form, 'project': project})
 
 def delete_project(request, project_id):
     project = get_object_or_404(MY_Project, pk= project_id, user = request.user)

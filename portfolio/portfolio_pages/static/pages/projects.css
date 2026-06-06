@@ -111,6 +111,32 @@
   margin: 0 0 .5rem;
 }
 
+.pp-tech-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.pp-tech {
+  background-color: transparent;
+  color: darkolivegreen;
+  border: 1px solid darkolivegreen;
+  border-radius: 20px;
+  padding: 2px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+
+.pp-tech:hover {
+  background-color: darkolivegreen;
+  color: #fff;
+  cursor: default;
+}
+
 .pp-text {
   color: var(--fog);
   font-size: .9rem;

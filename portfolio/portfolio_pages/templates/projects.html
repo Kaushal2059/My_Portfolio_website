@@ -27,7 +27,17 @@
           </div>
           <div class="pp-body">
             <h2 class="pp-name">{{ project.title }}</h2>
-            <p class="pp-text">{{ project.content }}</p>
+
+        {% if project.tech_stack.all %}
+  <div class="pp-tech-wrap">
+    {% for tech in project.tech_stack.all %}
+      <span class="pp-tech">{{ tech.tech_stack }}</span>
+    {% endfor %}
+  </div>
+{% endif %}
+            
+            
+            {% comment %} <p class="pp-text">{{ project.content }}</p> {% endcomment %}
             <div class="pp-actions">
               <a href="#" class="pp-link">View more <span class="arrow">→</span></a>
               {% if project.user == user %}

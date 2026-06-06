@@ -37,6 +37,14 @@ class ProjectImage(models.Model):
     def __str__(self):
         return f"Image for {self.project.title}"
     
+class Projecttech_stack(models.Model):
+    project = models.ForeignKey(MY_Project, on_delete=models.CASCADE, related_name= "tech_stack")
+    tech_stack = models.CharField(max_length=50, null=False, blank= False)
+
+    def __str__(self):
+        return self.tech_stack
+    
+    
 class My_skill(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, default = 1)
     title = models.CharField(max_length=100)
