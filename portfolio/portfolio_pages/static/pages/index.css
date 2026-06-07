@@ -73,6 +73,27 @@
   margin: 0 0 3rem;
 }
 
+.hp-skill{
+  background-color: transparent;
+  color: darkolivegreen;
+  border: 1px solid darkolivegreen;
+  border-radius: 15px;
+  padding: 2px 0.5em;
+  font-size: 1.5rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+  max-width: 42ch;
+  margin-bottom: 2em;
+  font-weight: bold;
+}
+
+.hp-skill:hover{
+  background-color: darkolivegreen;
+  color: rgb(203, 241, 229);
+  cursor:initial;
+}
+
 .hp-cta-row {
   display: flex;
   gap: 1rem;

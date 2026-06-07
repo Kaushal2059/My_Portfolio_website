@@ -10,7 +10,7 @@
 {% block content %}
 <div class="pp-wrap">
   <div class="pp-inner">
-    <div class="pp-eyebrow">— Index / Works</div>
+    <div class="pp-eyebrow">My works</div>
     <h1 class="pp-title">Things I made <em>when I felt like it.</em></h1>
     <p class="pp-sub">A loose archive of projects. Some finished, some abandoned, all honest.</p>
 
@@ -29,17 +29,18 @@
             <h2 class="pp-name">{{ project.title }}</h2>
 
         {% if project.tech_stack.all %}
-  <div class="pp-tech-wrap">
-    {% for tech in project.tech_stack.all %}
-      <span class="pp-tech">{{ tech.tech_stack }}</span>
-    {% endfor %}
-  </div>
-{% endif %}
+          <div class="pp-tech-wrap">
+           {% for tech in project.tech_stack.all %}
+            <span class="pp-tech">{{ tech.tech_stack }}</span>
+            {% endfor %}
+          </div>
+        {% endif %}
             
-            
-            {% comment %} <p class="pp-text">{{ project.content }}</p> {% endcomment %}
-            <div class="pp-actions">
-              <a href="#" class="pp-link">View more <span class="arrow">→</span></a>
+        {% comment %} <p class="pp-text">{{ project.content }}</p> {% endcomment %}
+          <div class="pp-actions">
+            <button class="pp-link" data-modal="project-{{ project.id }}">
+            View more <span class="arrow">→</span>
+            </button>
               {% if project.user == user %}
                 <div class="pp-owner">
                   <a href="{% url 'edit_project' project.id %}"   class="pp-chip">Edit</a>
@@ -49,15 +50,91 @@
             </div>
           </div>
         </article>
+
+        {% comment %} For the view more {% endcomment %}
+        <div id = "project-{{ project.id }}" class="pm-backdrop" hidden>
+          <div class="pm-panel">
+            <button class = "pm-close">&times;</button>
+            {% if project.images.all %}
+              <div class = "pm-gallery">
+                {% for img in project.images.all %}
+                  <img src="{{ img.image.url }}" alt="{{ project.title }}" >
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class = "pm-no-image">∅</div>
+            {% endif %}
+            <div class = "pm-body">
+            <div class="pm-eyebrow">
+              {{ forloop.counter|stringformat:"02d" }} / Project
+            </div>
+            <h2 class="pm-title">{{ project.title }}</h2>
+            <p class="pm-content">{{ project.content }}</p>
+            {% if project.url %}
+              <a href="{{ project.url }}" target="_blank" rel="noopener" class="pm-external">
+              Visit project <span>↗</span>
+              </a>
+            {% endif %}
+            {% if project.user == user %}
+              <div class="pm-owner-actions">
+                <a href="{% url 'edit_project' project.id %}" class="pp-chip">Edit</a>
+                <a href="{% url 'delete_project' project.id %}" class="pp-chip danger">Delete</a>
+              </div>
+            {% endif %}
+            </div>
+          </div>
+        </div>
       {% empty %}
         <div class="pp-empty">Nothing here yet.</div>
       {% endfor %}
-
-      <a href="{% url 'add_project' %}" class="pp-add">
-        <div class="plus" aria-hidden="true">+</div>
-        <span>Add a project</span>
-      </a>
+        <a href="{% url 'add_project' %}" class="pp-add">
+          <div class="plus" aria-hidden="true">+</div>
+          <span>Add a project</span>
+        </a>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  {% comment %} open the block {% endcomment %}
+  document.querySelectorAll('[data-modal]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const modal = document.getElementById(btn.dataset.modal)
+    modal.removeAttribute('hidden')
+    document.body.style.overflow = 'hidden'
+    modal.querySelector('.pm-close').focus()
+  })
+})
+function closeModal(modal) {
+  modal.setAttribute('hidden', '')
+  document.body.style.overflow = ''
+}
+{% comment %} Closes when x is clicked {% endcomment %}
+document.querySelectorAll('.pm-close').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const modal = btn.closest('.pm-backdrop')
+    closeModal(modal)
+  })
+})
+{% comment %} CLose when backdrop is clicked {% endcomment %}
+document.querySelectorAll('.pm-backdrop').forEach(backdrop => {
+  backdrop.addEventListener('click', e => {
+    if (e.target === backdrop) {
+      closeModal(backdrop)
+    }
+  })
+})
+{% comment %} Closes when "esc" is cicked {% endcomment %}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const openModal = document.querySelector('.pm-backdrop:not([hidden])')
+    if (openModal) {
+      closeModal(openModal)
+    }
+  }
+})
+</script>
+
 {% endblock %}
