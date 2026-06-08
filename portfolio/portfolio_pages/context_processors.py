@@ -5,4 +5,6 @@ def social_links(request):
         'LINKEDIN_URL': settings.LINKEDIN_URL,
         'FACEBOOK_URL': settings.FACEBOOK_URL,
         'INSTAGRAM_URL': settings.INSTAGRAM_URL,
+        'Email': settings.EMAIL,
+        'Github': settings.GITHUB_URL
     }

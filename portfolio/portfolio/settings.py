@@ -146,3 +146,5 @@ ADMIN_EMAIL = os.getenv('Email')           # Where you want to receive notificat
 LINKEDIN_URL = config('LINKEDIN_URL')
 FACEBOOK_URL = config('FACEBOOK_URL')
 INSTAGRAM_URL = config('INSTAGRAM_URL')
+EMAIL = config('Email')
+GITHUB_URL = config('GITHUB_URL')

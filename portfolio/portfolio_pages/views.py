@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from .models import About_me, MY_Project, My_skill, ProjectImage, Projecttech_stack
+from .models import About_me, MY_Project, My_skill, ProjectImage, Projecttech_stack, CV
 from .forms import ContactForm, Add_skillForm, Add_ProjectForm
 from django.shortcuts import get_object_or_404, redirect
 import sweetify
@@ -157,3 +157,8 @@ def delete_project(request, project_id):
         project.delete()
         return redirect('projects')
     return render(request, 'confirm_delete.html',{'object': project, 'object_type': 'project'})
+
+def resume (request):
+    resume = CV.objects.first()
+    print(resume)
+    return render(request, 'CV.html', {'resume': resume})

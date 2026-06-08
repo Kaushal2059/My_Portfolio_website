@@ -29,6 +29,7 @@
         <li><a href="{% url 'index' %}"    {% if request.resolver_match.url_name == 'index'   %}class="active"{% endif %}>Home</a></li>
         <li><a href="{% url 'projects' %}" {% if request.resolver_match.url_name == 'projects' %}class="active"{% endif %}>Projects</a></li>
         <li><a href="{% url 'skills' %}"   {% if request.resolver_match.url_name == 'skills'  %}class="active"{% endif %}>Skills</a></li>
+         <li><a href="{% url 'resume' %}">My resume</a></li>
         <li><a href="{% url 'contact' %}"  {% if request.resolver_match.url_name == 'contact' %}class="active"{% endif %}>Contact</a></li>
       </ul>
     </div>

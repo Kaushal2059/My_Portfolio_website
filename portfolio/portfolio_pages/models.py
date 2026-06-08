@@ -65,3 +65,10 @@ class Contact(models.Model):
 
     def __str__(self):
         return f"{self.Name} wants to say -------- {self.Message[:50]}"
+    
+class CV(models.Model):
+    title = models.CharField(max_length=100, null=False, blank=False)
+    cv = models.FileField(null=False, blank= False, upload_to='cv/')
+
+    def __str__(self):
+        return self.title

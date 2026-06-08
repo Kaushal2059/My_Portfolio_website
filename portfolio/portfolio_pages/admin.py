@@ -1,9 +1,10 @@
 from django.contrib import admin
-from .models import About_me, MY_Project, ProjectImage, My_skill, Contact, Projecttech_stack
+from .models import About_me, MY_Project, ProjectImage, My_skill, Contact, Projecttech_stack,CV
 
 # Register your models here.
 admin.site.register(About_me)
 admin.site.register(My_skill)
+admin.site.register(CV)
 
 class ProjectImageInline(admin.TabularInline):
     model = ProjectImage
