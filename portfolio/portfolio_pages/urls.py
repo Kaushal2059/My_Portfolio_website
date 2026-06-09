@@ -13,5 +13,7 @@ urlpatterns = [
     path('<int:project_id>/edit_project/', views.edit_project, name = 'edit_project' ),
     path('<int:project_id>/delete_project/', views.delete_project, name = 'delete_project' ),
     path('resume/', views.resume, name = 'resume' ),
+    path('login/', views.user_login, name='login'),
+    path('logout/', views.user_logout, name='logout'),
 ]
     

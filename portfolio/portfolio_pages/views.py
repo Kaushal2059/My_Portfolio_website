@@ -5,6 +5,9 @@ from django.shortcuts import get_object_or_404, redirect
 import sweetify
 from django.conf import settings
 from django.core.mail import send_mail
+from django.contrib.auth import authenticate, login, logout
+import sweetify
+from django.contrib.auth.decorators import login_required
 
 def index(request):
     about = About_me.objects.first()
@@ -63,6 +66,7 @@ Submitted at: {submit.created_at.strftime("%B %d, %Y at %I:%M %p")}
 
     return render(request, "contact.html", {"form":form})
 
+@login_required(login_url='login')
 def add_skill(request):
     if request.method == "POST":
         form = Add_skillForm(request.POST ,request.FILES)
@@ -76,6 +80,7 @@ def add_skill(request):
         form = Add_skillForm()
     return render(request, "add_skill.html", {'form':form})
 
+@login_required(login_url='login')
 def edit_skill(request, skill_id):
     skill = get_object_or_404(My_skill, pk = skill_id, user = request.user)
     if request.method == "POST":
@@ -89,6 +94,7 @@ def edit_skill(request, skill_id):
         form = Add_skillForm(instance=skill)
     return render(request, "add_skill.html", {'form':form})
 
+@login_required(login_url='login')
 def delete_skill(request, skill_id):
     skill = get_object_or_404(My_skill, pk= skill_id, user = request.user)
     if request.method == "POST":
@@ -96,6 +102,7 @@ def delete_skill(request, skill_id):
         return redirect('skills')
     return render(request, 'confirm_delete.html',{'object': skill, 'object_type': 'skill'})
 
+@login_required(login_url='login')
 def add_project(request):
     if request.method == "POST":
         form = Add_ProjectForm(request.POST ,request.FILES)
@@ -128,6 +135,7 @@ def add_project(request):
         form = Add_ProjectForm()
     return render(request, "add_project.html", {'form':form})
 
+@login_required(login_url='login')
 def edit_project(request, project_id):
     project = get_object_or_404(MY_Project, pk=project_id, user = request.user)
     if request.method == "POST":
@@ -151,6 +159,7 @@ def edit_project(request, project_id):
         form = Add_ProjectForm(instance=project)
     return render(request, 'add_project.html', {'form': form, 'project': project})
 
+@login_required(login_url='login')
 def delete_project(request, project_id):
     project = get_object_or_404(MY_Project, pk= project_id, user = request.user)
     if request.method == "POST":
@@ -162,3 +171,20 @@ def resume (request):
     resume = CV.objects.first()
     print(resume)
     return render(request, 'CV.html', {'resume': resume})
+
+def user_login(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        user = authenticate(request, username= username, password = password)
+        if user is not None:
+            login(request, user)
+            return redirect('index')
+        else:
+            sweetify.error(request, "Invalid username or password", tiemr = 3000)
+            return redirect('login')
+    return render(request, 'registration/login.html')
+
+def user_logout(request):
+    logout(request)
+    return redirect('index')

@@ -29,9 +29,15 @@
         <li><a href="{% url 'index' %}"    {% if request.resolver_match.url_name == 'index'   %}class="active"{% endif %}>Home</a></li>
         <li><a href="{% url 'projects' %}" {% if request.resolver_match.url_name == 'projects' %}class="active"{% endif %}>Projects</a></li>
         <li><a href="{% url 'skills' %}"   {% if request.resolver_match.url_name == 'skills'  %}class="active"{% endif %}>Skills</a></li>
-         <li><a href="{% url 'resume' %}">My resume</a></li>
+        <li><a href="{% url 'resume' %}"  {% if request.resolver_match.url_name == 'resume' %}class="active"{% endif %}>My CV</a></li>
         <li><a href="{% url 'contact' %}"  {% if request.resolver_match.url_name == 'contact' %}class="active"{% endif %}>Contact</a></li>
-      </ul>
+        {% if user.is_authenticated %}
+        <li>
+          <a href="#" onclick="confirmLogout()" >Logout</a>
+        </li>
+        {% else %}
+        <li><a href="{% url 'login' %}">Login</a></li>
+        {% endif %}
     </div>
   </nav>
 
@@ -55,6 +61,7 @@
         <li><a href="{% url 'skills' %}">Skills</a></li>
         <li><a href="{% url 'contact' %}">Contact</a></li>
         <li><a href="{% url 'index' %}#about">About</a></li>
+        <li><a href="{% url 'resume' %}#about">My Cv</a></li>
       </ul>
       <div class="site-footer-bottom">
         <span class="site-footer-copy">© Kaushal Rupakheti</span>
@@ -85,7 +92,26 @@
     });
   </script>
 
-  {% block extra_scripts %}{% endblock %}
+  {% block extra_scripts %}
+  <script>
+    function confirmLogout() {
+      Swal.fire({
+        title: 'Logging out?',
+        text: 'Are you sure you want to logout?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#556b2f',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, logout',
+        cancelButtonText: 'Cancel'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          window.location.href = "{% url 'logout' %}";
+        }
+      })
+    }
+  </script>
+  {% endblock %}
 
   {% load sweetify %}
   {% sweetify %}
