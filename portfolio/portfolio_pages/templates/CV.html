@@ -1,13 +1,29 @@
 {% extends "layout.html" %}
 {% load static %}
 
-{% block title %} My_CV {% endblock %}
+{% block title %}My CV{% endblock %}
 
-
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'pages/CV.css'%}">
+{% endblock %}
 
 {% block content %}
-
-<div style="color: red; font-size: 2rem; background-color: black; padding-top: 56px">
-  HELLO TEST
+<div class="cv-body" style="padding-top: 56px;">
+  {% if resume %}
+    <div class="cv-container">
+      <h1 class="cv-title">{{ resume.title }}</h1>
+      <p class="cv-sub">View or download my latest CV.</p>
+      <div class="cv-buttons">
+        <a href="{{ resume.cv.url }}" target="_blank" class="cv-download">
+          <i class="bi bi-eye"></i> View CV
+        </a>
+        <a href="{{ resume.cv.url }}" download class="cv-download cv-dl">
+          <i class="bi bi-file-earmark-arrow-down"></i> Download CV
+        </a>
+      </div>
+    </div>
+  {% else %}
+    <p>No CV uploaded yet.</p>
+  {% endif %}
 </div>
 {% endblock %}
