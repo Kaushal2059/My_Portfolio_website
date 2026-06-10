@@ -86,6 +86,7 @@
   max-width: 42ch;
   margin-bottom: 2em;
   font-weight: bold;
+  text-align: center;
 }
 
 .hp-skill:hover{

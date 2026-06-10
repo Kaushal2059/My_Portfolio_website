@@ -106,7 +106,8 @@ def delete_skill(request, skill_id):
 def add_project(request):
     if request.method == "POST":
         form = Add_ProjectForm(request.POST ,request.FILES)
-
+        print("FILES:", request.FILES)
+        print("Images list:", request.FILES.getlist("images"))
         if form.is_valid():
             project = form.save(commit=False)
             project.user = request.user
@@ -137,27 +138,46 @@ def add_project(request):
 
 @login_required(login_url='login')
 def edit_project(request, project_id):
-    project = get_object_or_404(MY_Project, pk=project_id, user = request.user)
+    project = get_object_or_404(MY_Project, pk=project_id, user=request.user)
     if request.method == "POST":
-        form = Add_ProjectForm(request.POST, request.FILES, instance= project)
+        form = Add_ProjectForm(request.POST, request.FILES, instance=project)
         if form.is_valid():
             project = form.save(commit=False)
             project.user = request.user
             project.save()
 
+            # delete images user marked for deletion
+            deleted_images = request.POST.getlist("delete_image")
+            for image_id in deleted_images:
+                ProjectImage.objects.filter(id=image_id, project=project).delete()
+
+            # add new images on top of existing ones
+            new_images = request.FILES.getlist("images")
+            for image in new_images:
+                ProjectImage.objects.create(project=project, image=image)
+
+            #  handle tech stack
+            project.tech_stack.all().delete()
             tech = request.POST.get("tech_stack")
             if tech:
                 for techs in tech.split(","):
                     techs = techs.strip()
                     if techs:
-                        Projecttech_stack.objects.create(
-                            project=project,
-                            tech_stack=techs
-                        )
+                        Projecttech_stack.objects.create(project=project, tech_stack=techs)
+
             return redirect('projects')
     else:
         form = Add_ProjectForm(instance=project)
-    return render(request, 'add_project.html', {'form': form, 'project': project})
+
+    existing_tech = ", ".join(project.tech_stack.values_list("tech_stack", flat=True))
+    existing_images = project.images.all()
+
+    return render(request, 'add_project.html', {
+        'form': form,
+        'project': project,
+        'existing_tech': existing_tech,
+        'existing_images': existing_images,
+    })
 
 @login_required(login_url='login')
 def delete_project(request, project_id):

@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% load static %}
 
-{% block title %}Add Project{% endblock %}
+{% block title %}{% if project %}Edit Project{% else %}Add Project. {% endif %}{% endblock %}
 
 {% block extra_head %}
   <link rel="stylesheet" href="{% static 'pages/addprojects.css' %}">
@@ -10,8 +10,8 @@
 {% block content %}
 <div class="ap-wrap">
   <div class="ap-inner">
-    <div class="ap-eyebrow">New Project</div>
-    <h1 class="ap-title">Add a project, <em>you've recently completed.</em></h1>
+    <div class="ap-eyebrow">{% if project %}Edit Project{% else %}New Project{% endif %}</div>
+    <h1 class="ap-title">{% if project %}Edit your project.{% else %}Add a project, <em>you've recently completed.</em>{% endif %}</h1>
     <p class="ap-sub">Drop the details below. You can always edit, rewrite, or delete it later.</p>
 
     <form method="POST" enctype="multipart/form-data" class="ap-form">
@@ -19,24 +19,70 @@
 
       {{ form.as_p }}
 
-      <div class = "ap-field">
-        <label for="tech_stack">Tech used</label>
-        <input type="text" id = "tech_stack" name= "tech_stack" placeholder = "python, django, Bootstrap">
-      </div>
+      <!-- Tech Stack -->
       <div class="ap-field">
-        <label for="images">Project Images</label>
+        <label for="tech_stack">Tech used</label>
+        <input 
+          type="text" 
+          id="tech_stack" 
+          name="tech_stack" 
+          placeholder="python, django, Bootstrap"
+          value="{{ existing_tech }}"
+        >
+      </div>
+
+      <!--  EXISTING IMAGES — only shows on edit -->
+      {% if existing_images %}
+        <div class="ap-field">
+          <label>Current Images</label>
+          <div class="ap-existing-images">
+            {% for img in existing_images %}
+              <div class="ap-existing-img-wrap">
+                <img src="{{ img.image.url }}" alt="Project image" class="ap-existing-img">
+                <span class="ap-img-name">{{ img.image.name|cut:"photos/" }}</span>
+                <label class="ap-img-delete">
+                  <input type="checkbox" name="delete_image" value="{{ img.id }}">
+                  <span class="ap-img-cross">&times;</span>
+                </label>
+              </div>
+            {% endfor %}
+          </div>
+          <p class="ap-hint">Click × to remove. Upload below to add more.</p>
+        </div>
+      {% endif %}
+
+      <!-- Image Upload -->
+      <div class="ap-field">
+        <label for="images">{% if existing_images %}Add More Images{% else %}Project Images{% endif %}</label>
         <div class="ap-file">
           <div class="ap-file-plus" aria-hidden="true">+</div>
-          <div class="ap-file-hint">Add a imge for of your project</div>
-          <input id="images" type="file" name="images" multiple aria-label="Upload project images">
+          <div class="ap-file-hint">Add images for your project</div>
+          <input id="images" type="file" name="images" multiple accept="image/*">
         </div>
       </div>
 
       <div class="form-actions">
-        <button type="submit" class="btn-submit">Publish →</button>
+        <button type="submit" class="btn-submit">{% if project %}Save Changes →{% else %}Publish →{% endif %}</button>
         <a href="{% url 'projects' %}" class="btn-cancel">Cancel</a>
       </div>
     </form>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.getElementById('images').addEventListener('change', function() {
+    const files = this.files;
+    const hint = document.querySelector('.ap-file-hint');
+    
+    if (files.length === 1) {
+      hint.textContent = files[0].name;
+    } else if (files.length > 1) {
+      hint.textContent = `${files.length} images selected`;
+    } else {
+      hint.textContent = 'Add images for your project';
+    }
+  });
+</script>
 {% endblock %}

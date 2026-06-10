@@ -96,3 +96,80 @@
   letter-spacing: .2em;
   text-transform: uppercase;
 }
+
+/* ----- Existing Images (edit mode) ----- */
+.ap-existing-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.ap-existing-img-wrap {
+  position: relative;
+  width: 100px;
+}
+
+.ap-existing-img {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  display: block;
+  transition: opacity 0.2s, border-color 0.2s;
+}
+
+.ap-img-name {
+  font-size: 0.65rem;
+  color: var(--fog);
+  display: block;
+  text-align: center;
+  margin-top: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ap-img-delete {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  cursor: pointer;
+}
+
+.ap-img-delete input[type="checkbox"] {
+  display: none;
+}
+
+.ap-img-cross {
+  width: 20px;
+  height: 20px;
+  background: #e74c3c;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  line-height: 1;
+  transition: background 0.2s;
+}
+
+/* dim image when marked for deletion */
+.ap-existing-img-wrap:has(input:checked) .ap-existing-img {
+  opacity: 0.3;
+  border-color: #e74c3c;
+}
+
+.ap-existing-img-wrap:has(input:checked) .ap-img-cross {
+  background: var(--fog);
+}
+
+.ap-hint {
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--fog);
+  margin-top: 0.25rem;
+}

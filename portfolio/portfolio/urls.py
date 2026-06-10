@@ -19,8 +19,10 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from . import views
+from django.views.generic import RedirectView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('portfolio_pages/', include('portfolio_pages.urls')),
+    path('', RedirectView.as_view(url='/portfolio_pages/'))
 ] + static(settings.MEDIA_URL, document_root = settings.MEDIA_ROOT)

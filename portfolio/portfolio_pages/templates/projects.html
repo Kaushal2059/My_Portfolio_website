@@ -52,38 +52,60 @@
         </article>
 
         {% comment %} For the view more {% endcomment %}
-        <div id = "project-{{ project.id }}" class="pm-backdrop" hidden>
-          <div class="pm-panel">
-            <button class = "pm-close">&times;</button>
-            {% if project.images.all %}
-              <div class = "pm-gallery">
+        <div id="project-{{ project.id }}" class="pm-backdrop" hidden>
+    <div class="pm-panel">
+      <button class="pm-close">&times;</button>
+      {% if project.images.all %}
+      <!--  Carousel -->
+        <div class="pm-carousel">
+          <div class="pm-carousel-track" id="track-{{ project.id }}">
+            {% for img in project.images.all %}
+              <div class="pm-slide">
+                <img src="{{ img.image.url }}" alt="{{ project.title }}">
+              </div>
+            {% endfor %}
+          </div>
+          {% if project.images.count > 1 %}
+            <button class="pm-prev" data-target="track-{{ project.id }}">&#8592;</button>
+            <button class="pm-next" data-target="track-{{ project.id }}">&#8594;</button>
+              <div class="pm-dots">
                 {% for img in project.images.all %}
-                  <img src="{{ img.image.url }}" alt="{{ project.title }}" >
+                  <span class="pm-dot {% if forloop.first %}active{% endif %}"></span>
                 {% endfor %}
               </div>
-            {% else %}
-              <div class = "pm-no-image">∅</div>
-            {% endif %}
-            <div class = "pm-body">
-            <div class="pm-eyebrow">
-              {{ forloop.counter|stringformat:"02d" }} / Project
-            </div>
-            <h2 class="pm-title">{{ project.title }}</h2>
-            <p class="pm-content">{{ project.content }}</p>
-            {% if project.url %}
-              <a href="{{ project.url }}" target="_blank" rel="noopener" class="pm-external">
-              Visit project <span>↗</span>
-              </a>
-            {% endif %}
-            {% if project.user == user %}
-              <div class="pm-owner-actions">
-                <a href="{% url 'edit_project' project.id %}" class="pp-chip">Edit</a>
-                <a href="{% url 'delete_project' project.id %}" class="pp-chip danger">Delete</a>
-              </div>
-            {% endif %}
-            </div>
-          </div>
+          {% endif %}
         </div>
+      {% else %}
+        <div class="pm-no-image">∅</div>
+      {% endif %}
+      <div class="pm-body">
+        <div class="pm-eyebrow">{{ forloop.counter|stringformat:"02d" }} / Project</div>
+      <h2 class="pm-title">{{ project.title }}</h2>
+      <p class="pm-content">{{ project.content }}</p>
+
+      <!--  Tech stack in modal -->
+      {% if project.tech_stack.all %}
+        <div class="pp-tech-wrap">
+          {% for tech in project.tech_stack.all %}
+            <span class="pp-tech">{{ tech.tech_stack }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% if project.url %}
+        <a href="{{ project.url }}" target="_blank" rel="noopener" class="pm-external">
+          Visit project <span>↗</span>
+        </a>
+      {% endif %}
+      {% if project.user == user %}
+        <div class="pm-owner-actions">
+          <a href="{% url 'edit_project' project.id %}" class="pp-chip">Edit</a>
+          <a href="{% url 'delete_project' project.id %}" class="pp-chip danger">Delete</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
       {% empty %}
         <div class="pp-empty">Nothing here yet.</div>
       {% endfor %}
@@ -135,6 +157,27 @@ document.addEventListener('keydown', e => {
     }
   }
 })
+
+// Carousel
+document.querySelectorAll('.pm-carousel').forEach(carousel => {
+  const track = carousel.querySelector('.pm-carousel-track');
+  const dots = carousel.querySelectorAll('.pm-dot');
+  let current = 0;
+
+  function goTo(index) {
+    current = index;
+    track.style.transform = `translateX(-${current * 100}%)`;
+    dots.forEach((d, i) => d.classList.toggle('active', i === current));
+  }
+
+  carousel.querySelector('.pm-prev')?.addEventListener('click', () => {
+    goTo(current === 0 ? track.children.length - 1 : current - 1);
+  });
+
+  carousel.querySelector('.pm-next')?.addEventListener('click', () => {
+    goTo(current === track.children.length - 1 ? 0 : current + 1);
+  });
+});
 </script>
 
 {% endblock %}
