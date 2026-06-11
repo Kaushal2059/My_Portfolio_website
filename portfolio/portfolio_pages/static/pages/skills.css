@@ -54,19 +54,20 @@
 .sk-grid {
   display: grid;
   gap: 1.25rem;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));  
 }
 
 /* ----- Card ----- */
 .sk-item {
   position: relative;
-  background: var(--ink-2);
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  /* background: var(--ink-2); */
+  /* border: 1px solid var(--line);*/
+  border-radius: 14px; 
   padding: 1.75rem 1.25rem 1.5rem;
   text-align: center;
   transition: transform .4s ease, border-color .4s ease, background .4s ease;
   overflow: hidden;
+
 }
 .sk-item:hover {
   transform: translateY(-4px);
@@ -190,4 +191,106 @@
   padding: 4rem 1rem;
   font-family: "Instrument Serif", serif;
   font-size: 1.5rem;
+}
+
+/* ----- Skill Modal ----- */
+.sm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 100;
+  display: none;          /* ✅ hidden by default */
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.sm-backdrop.active {
+  display: flex;          /* ✅ shown on click */
+}
+
+.sm-panel {
+  background: var(--surface, #1a1a1a);
+  border-radius: 16px;
+  max-width: 480px;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  animation: sm-in 0.2s ease;  /* ✅ smooth entrance */
+}
+
+@keyframes sm-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.sm-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: #fff;
+  font-size: 1.25rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: background 0.2s;
+}
+
+.sm-close:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.sm-image img {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+}
+
+.sm-no-image {
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: var(--fog);
+  background: var(--surface);
+}
+
+.sm-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sm-eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--fog);
+}
+
+.sm-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.sm-desc {
+  color: var(--fog);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.sm-owner-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
 }
