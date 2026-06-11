@@ -23,7 +23,9 @@
 
     <div class="sk-grid">
       {% for skill in skills %}
-        <div class="sk-item">
+
+        <!-- Skill Card -->
+        <div class="sk-item" data-modal="skill-{{ skill.id }}">
           <span class="sk-num">{{ forloop.counter|stringformat:"02d" }}</span>
           <div class="sk-thumb">
             {% if skill.image %}
@@ -36,11 +38,40 @@
           <p class="sk-desc">{{ skill.description }}</p>
           {% if skill.user == user %}
             <div class="sk-owner">
-              <a href="{% url 'edit_skill' skill.id %}"   class="sk-chip">Edit</a>
-              <a href="{% url 'delete_skill' skill.id %}" class="sk-chip danger">Delete</a>
+              <a href="{% url 'edit_skill' skill.id %}" class="sk-chip" onclick="event.stopPropagation()">Edit</a>
+              <a href="{% url 'delete_skill' skill.id %}" class="sk-chip danger" onclick="event.stopPropagation()">Delete</a>
             </div>
           {% endif %}
         </div>
+
+        <!-- Skill Modal -->
+        <div id="skill-{{ skill.id }}" class="sm-backdrop">
+          <div class="sm-panel">
+            <button class="sm-close">&times;</button>
+
+            {% if skill.image %}
+              <div class="sm-image">
+                <img src="{{ skill.image.url }}" alt="{{ skill.title }}">
+              </div>
+            {% else %}
+              <div class="sm-no-image">∅</div>
+            {% endif %}
+
+            <div class="sm-body">
+              <div class="sm-eyebrow">{{ forloop.counter|stringformat:"02d" }} / Skill</div>
+              <h2 class="sm-title">{{ skill.title }}</h2>
+              <p class="sm-desc">{{ skill.description }}</p>
+
+              {% if skill.user == user %}
+                <div class="sm-owner-actions">
+                  <a href="{% url 'edit_skill' skill.id %}" class="sk-chip" onclick="event.stopPropagation()">Edit</a>
+                  <a href="{% url 'delete_skill' skill.id %}" class="sk-chip danger" onclick="event.stopPropagation()">Delete</a>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
       {% empty %}
         <div class="sk-empty">Nothing here yet.</div>
       {% endfor %}
@@ -52,4 +83,43 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Open modal
+  document.querySelectorAll('.sk-item[data-modal]').forEach(card => {
+    card.addEventListener('click', () => {
+      const modal = document.getElementById(card.dataset.modal);
+      modal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+      modal.querySelector('.sm-close').focus();
+    });
+  });
+
+  function closeModal(modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  // Close on X
+  document.querySelectorAll('.sm-close').forEach(btn => {
+    btn.addEventListener('click', () => closeModal(btn.closest('.sm-backdrop')));
+  });
+
+  // Close on backdrop click
+  document.querySelectorAll('.sm-backdrop').forEach(backdrop => {
+    backdrop.addEventListener('click', e => {
+      if (e.target === backdrop) closeModal(backdrop);
+    });
+  });
+
+  // Close on Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      const open = document.querySelector('.sm-backdrop.active');
+      if (open) closeModal(open);
+    }
+  });
+</script>
 {% endblock %}
