@@ -1,13 +1,13 @@
 # Environment and secrets
-.env
+portfolio/.env
 .env.*
 
 # Database
-db.sqlite3
+portfolio/db.sqlite3
 *.sqlite3
 
 # Python
-venv
+venv/
 __pycache__/
 *.pyc
 *.pyo
@@ -15,8 +15,8 @@ __pycache__/
 *.egg-info/
 
 # Django generated
-staticfiles
-media
+portfolio/staticfiles/
+portfolio/media/
 
 # Docker
 *.sock
