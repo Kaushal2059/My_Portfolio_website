@@ -1,6 +1,29 @@
+# Environment and secrets
 .env
-<<<<<<< HEAD
+.env.*
+
+# Database
 db.sqlite3
-=======
-db.sqlite3
->>>>>>> 5679b933d620709f64335f809a7cf8ba391b304c
+*.sqlite3
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# Django generated
+staticfiles/
+media/
+
+# Docker
+*.sock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
