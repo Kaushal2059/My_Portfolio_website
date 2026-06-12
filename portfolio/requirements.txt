@@ -8,3 +8,4 @@ python-dotenv==1.2.2
 sqlparse==0.5.5
 sweetify==2.3.1
 tzdata==2026.2
+psycopg2-binary==2.9.9
