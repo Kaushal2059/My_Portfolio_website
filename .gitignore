@@ -1,29 +1,2 @@
-# Environment and secrets
 .env
-.env.*
-
-# Database
 db.sqlite3
-*.sqlite3
-
-# Python
-venv/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.egg-info/
-
-# Django generated
-staticfiles/
-media/
-
-# Docker
-*.sock
-
-# OS
-.DS_Store
-Thumbs.db
-
-# VS Code
-.vscode/
