@@ -1,2 +1,30 @@
-.env
-db.sqlite3
+
+# Environment and secrets
+portfolio/.env
+.env.*
+
+# Database
+portfolio/db.sqlite3
+*.sqlite3
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# Django generated
+portfolio/staticfiles/
+portfolio/media/
+
+# Docker
+*.sock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
