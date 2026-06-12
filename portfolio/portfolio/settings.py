@@ -12,14 +12,10 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
-from dotenv import load_dotenv
 from decouple import config, Csv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-
-load_dotenv(BASE_DIR / '.env') 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -27,7 +23,7 @@ load_dotenv(BASE_DIR / '.env')
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
 
@@ -81,8 +77,12 @@ WSGI_APPLICATION = 'portfolio.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME', default='portfolio_db'),
+        'USER': config('DB_USER', default='portfolio_user'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST', default='db'),
+        'PORT': config('DB_PORT', default='5432'),
     }
 }
 
@@ -130,18 +130,18 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Email Configuration
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND')
-EMAIL_HOST = os.getenv('EMAIL_HOST')
-EMAIL_PORT = os.getenv('EMAIL_PORT')
+EMAIL_BACKEND = config('EMAIL_BACKEND',
+    default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv('Email')     # Your Gmail address
-EMAIL_HOST_PASSWORD = os.getenv('password')   # Gmail App Password (16 chars)
-DEFAULT_FROM_EMAIL = os.getenv('Email')
+EMAIL_HOST_USER = config('EMAIL', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('EMAIL', default='')
+ADMIN_EMAIL = config('EMAIL', default='')
 
-ADMIN_EMAIL = os.getenv('Email')           # Where you want to receive notifications
-
-LINKEDIN_URL = config('LINKEDIN_URL')
-FACEBOOK_URL = config('FACEBOOK_URL')
-INSTAGRAM_URL = config('INSTAGRAM_URL')
-EMAIL = config('Email')
-GITHUB_URL = config('GITHUB_URL')
+LINKEDIN_URL = config('LINKEDIN_URL', default='')
+FACEBOOK_URL = config('FACEBOOK_URL', default='')
+INSTAGRAM_URL = config('INSTAGRAM_URL', default='')
+EMAIL = config('EMAIL', default='')
+GITHUB_URL = config('GITHUB_URL', default='')
