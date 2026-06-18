@@ -25,7 +25,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      restart: unless-stopped
+    restart: unless-stopped
 
   nginx:
     image: nginx:alpine
