@@ -1,4 +1,4 @@
-name: CI/CD pipeline
+name: CI/CD Pipeline
 
 on:
   push:
@@ -9,14 +9,14 @@ on:
 jobs:
 
   test:
-    name: Run Django test
+    name: Run Django Tests
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: setup python 3.12
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -26,8 +26,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Django test
-        env: 
+      - name: Run Django tests
+        env:
           SECRET_KEY: "test-secret-key-for-ci-not-real"
           DEBUG: "True"
           ALLOWED_HOSTS: "localhost,127.0.0.1"
