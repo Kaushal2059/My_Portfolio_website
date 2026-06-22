@@ -17,7 +17,7 @@ class Smoketest(TestCase):
 
     def test_admin_page_loads(self):
         response = self.client.get('/admin/')
-        self.assertEqual(response.status_code, [200, 302])
+        self.assertIn(response.status_code, [200, 302])
 
     def test_database_works(self):
         count = User.objects.count()
