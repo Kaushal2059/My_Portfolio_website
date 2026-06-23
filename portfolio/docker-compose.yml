@@ -14,7 +14,7 @@ services:
     restart: unless-stopped
 
   web:
-    image: iamkaushal20/portfolioal:latest
+    image: iamkaushal20/portfolio:latest
     env_file:
       - .env
     volumes:
