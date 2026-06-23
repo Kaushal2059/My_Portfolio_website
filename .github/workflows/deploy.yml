@@ -46,7 +46,6 @@ jobs:
           INSTAGRAM_URL: "https://instagram.com"
           GITHUB_URL: "https://github.com"
         run: |
-          cd portfolio
           python manage.py test --verbosity=2
 
   deploy:
