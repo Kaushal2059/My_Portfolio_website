@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'portfolio_pages',
     'sweetify',
+    'django_prometheus'
 ]
 
 MIDDLEWARE = [
