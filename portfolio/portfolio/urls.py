@@ -24,5 +24,6 @@ from django.views.generic import RedirectView
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('portfolio_pages/', include('portfolio_pages.urls')),
-    path('', RedirectView.as_view(url='/portfolio_pages/'))
+    path('', RedirectView.as_view(url='/portfolio_pages/')),
+    path('', include('django_prometheus.urls')),
 ] + static(settings.MEDIA_URL, document_root = settings.MEDIA_ROOT)
