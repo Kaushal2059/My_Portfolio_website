@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+  # prometheus collects metrices every 15 seconds
+
+  evaluation_interval: 15s
+  # prometheus evaluates alert rules every 15 seconds
+
+scrape_configs:
+  - job_name: 'django'
+    static_configs:
+      - targets: ['web:8000']
+    metrics_path: '/metrics'
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'nginx'
+    static_configs:
+      - targets: [nginx:80]
+    metrics_path: '/nginx_status'
