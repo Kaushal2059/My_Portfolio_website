@@ -51,8 +51,57 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
+  
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus.yml:etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/console'
+    ports:
+      - "9090:9090"
+    depends_on:
+      - web
+    restart:
+      - unless-stopped
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: "10m"
+        max-file: "3"
+  
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=smtp.gmail.com:587
+      - GF_SMTP_USER=${EMAIL}
+      - GF_SMTP_PASSWORD=${EMAIL_PASSWORD}
+      - GF_SMTP_FROM_ADDRESS=${EMAIL}
+      - GF_SMTP_FROM_NAME=Portfolio Monitoring
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 volumes:
   postgres_data:
   static_volume:
   media_volume:
+  prometheus_data:
+  grafana_data:
