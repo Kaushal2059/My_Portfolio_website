@@ -30,3 +30,9 @@ Thumbs.db
 .vscode/
 
 deploy.sh
+
+# Internal working docs (not meant for the public repo)
+CLAUDE.md
+AWS-CICD.md
+cloud_architecture.md
+cloud_implementation_steps.md
