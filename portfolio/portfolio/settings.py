@@ -27,6 +27,13 @@ DEBUG = DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
 
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())
+
+# Lets Django trust nginx's X-Forwarded-Proto header (already sent, see nginx.conf) to know
+# whether the original client request was HTTPS. Inert on its own until SECURE_SSL_REDIRECT /
+# *_COOKIE_SECURE are turned on once a real TLS-terminating domain exists (Phase 7+).
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 # Application definition
 
@@ -139,6 +146,27 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# S3 for media (user uploads) only — static files stay served by nginx from local disk.
+AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME', default='portfolio-media-897021975353')
+AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1')
+# Bucket relies on a bucket *policy* for public read, not object ACLs (Block Public Access
+# blocks ACLs entirely) — don't let django-storages try to set one, it would just fail/no-op.
+AWS_DEFAULT_ACL = None
+# Objects are already public via the bucket policy; skip presigned-URL query params so links
+# don't silently expire after an hour.
+AWS_QUERYSTRING_AUTH = False
+# No AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY here on purpose — boto3 picks up temporary
+# credentials automatically from the EC2 instance's IAM role (portfolio-ec2-role).
+
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
 
 # Email Configuration
 EMAIL_BACKEND = config('EMAIL_BACKEND',

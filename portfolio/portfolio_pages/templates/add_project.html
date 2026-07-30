@@ -76,7 +76,7 @@
     const files = this.files;
     const hint = document.querySelector('.ap-file-hint');
     
-    if (files.length === 1) {
+    if (files.length == 1) {
       hint.textContent = files[0].name;
     } else if (files.length > 1) {
       hint.textContent = `${files.length} images selected`;
