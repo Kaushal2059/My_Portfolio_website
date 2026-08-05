@@ -36,3 +36,24 @@ CLAUDE.md
 AWS-CICD.md
 cloud_architecture.md
 cloud_implementation_steps.md
+infra/README.md
+ansible/README.md
+LEARNING_NOTES.md
+
+# Terraform (infra/) — state and local plugin cache are machine-specific
+# and can contain sensitive values; .tf source and .terraform.lock.hcl ARE
+# meant to be committed, so they're deliberately not matched below.
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*tfplan*
+.terraformrc
+terraform.rc

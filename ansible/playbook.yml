@@ -1,0 +1,126 @@
+---
+- name: Install Docker on the portfolio web server
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Install prerequisite packages
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+        update_cache: true
+
+    - name: Add Docker's official GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker's apt repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker Engine + Compose plugin
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+    - name: Ensure Docker service is enabled and running
+      service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add ubuntu user to the docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: true
+
+    - name: Copy docker-compose to the instance
+      copy:
+        src: ../portfolio/docker-compose.prod.yml
+        dest: /home/ubuntu/docker-compose.prod.yml
+        mode: '0644'
+
+    - name: Copy nginx conf to the instance
+      copy:
+        src: ../portfolio/nginx/nginx.conf
+        dest: /home/ubuntu/nginx.conf
+        mode: '0644'
+
+    - name: Copy prometheus conf to ec2 instance
+      copy:
+        src: ../portfolio/monitoring/prometheus.yml
+        dest: /home/ubuntu/prometheus.yml
+        mode: '0644'
+
+    - name: Get RDS instance info
+      amazon.aws.rds_instance_info:
+        db_instance_identifier: portfolio-db
+        region: us-east-1
+      register: rds_info
+      delegate_to: localhost
+      become: false
+
+    - name: Get ALB info
+      amazon.aws.elb_application_lb_info:
+        names:
+          - portfolio-alb
+        region: us-east-1
+      register: alb_info
+      delegate_to: localhost
+      become: false
+
+    - name: Get RDS master password from Secrets Manager
+      set_fact:
+        db_password: "{{ (lookup('amazon.aws.aws_secret', rds_info.instances[0].master_user_secret.secret_arn, region='us-east-1') | from_json).password }}"
+
+    - name: Generate .env file
+      template:
+        src: templates/env.j2
+        dest: /home/ubuntu/.env
+        mode: '0600'
+
+    - name: Install unzip
+      apt:
+        name: unzip
+        state: present
+
+    - name: Download AWS CLI v2 installer
+      get_url:
+        url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+        dest: /tmp/awscliv2.zip
+
+    - name: Unzip AWS CLI v2 installer
+      unarchive:
+        src: /tmp/awscliv2.zip
+        dest: /tmp
+        remote_src: true
+
+    - name: Install AWS CLI v2
+      command: /tmp/aws/install
+      args:
+        creates: /usr/local/bin/aws
+
+    - name: Log in to ECR
+      shell: aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 897021975353.dkr.ecr.us-east-1.amazonaws.com
+
+    - name: Pull latest images
+      command: docker compose -f docker-compose.prod.yml pull
+      args:
+        chdir: /home/ubuntu
+
+    - name: Start the application stack
+      command: docker compose -f docker-compose.prod.yml up -d --force-recreate
+      args:
+        chdir: /home/ubuntu
+
