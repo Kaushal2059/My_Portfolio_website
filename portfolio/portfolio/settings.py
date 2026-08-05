@@ -148,20 +148,28 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # S3 for media (user uploads) only — static files stay served by nginx from local disk.
-AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME', default='portfolio-media-897021975353')
-AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1')
-# Bucket relies on a bucket *policy* for public read, not object ACLs (Block Public Access
-# blocks ACLs entirely) — don't let django-storages try to set one, it would just fail/no-op.
-AWS_DEFAULT_ACL = None
-# Objects are already public via the bucket policy; skip presigned-URL query params so links
-# don't silently expire after an hour.
-AWS_QUERYSTRING_AUTH = False
-# No AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY here on purpose — boto3 picks up temporary
-# credentials automatically from the EC2 instance's IAM role (portfolio-ec2-role).
+# Off by default so the non-AWS production deployment (no IAM role to reach S3 with) keeps
+# using local disk storage untouched. Ansible's env.j2 sets USE_S3=True on the AWS box only.
+USE_S3 = config('USE_S3', default=False, cast=bool)
+
+if USE_S3:
+    AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME', default='portfolio-media-897021975353')
+    AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1')
+    # Bucket relies on a bucket *policy* for public read, not object ACLs (Block Public Access
+    # blocks ACLs entirely) — don't let django-storages try to set one, it would just fail/no-op.
+    AWS_DEFAULT_ACL = None
+    # Objects are already public via the bucket policy; skip presigned-URL query params so links
+    # don't silently expire after an hour.
+    AWS_QUERYSTRING_AUTH = False
+    # No AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY here on purpose — boto3 picks up temporary
+    # credentials automatically from the EC2 instance's IAM role (portfolio-ec2-role).
+    DEFAULT_STORAGE_BACKEND = "storages.backends.s3.S3Storage"
+else:
+    DEFAULT_STORAGE_BACKEND = "django.core.files.storage.FileSystemStorage"
 
 STORAGES = {
     "default": {
-        "BACKEND": "storages.backends.s3.S3Storage",
+        "BACKEND": DEFAULT_STORAGE_BACKEND,
     },
     "staticfiles": {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
