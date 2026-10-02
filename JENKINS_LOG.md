@@ -324,6 +324,7 @@ Laptop (Windows) ── Docker Desktop engine
 
 **Result**
 - **Part 1 ✅ – build #3 (02/10/2026):** `python --version` → `Python 3.12.15` inside the container. Commit `59be5b3` "test docker as a agent".
+- **Part 2 ✅: build #5 (02/10/2026):** printed `TEST_DB is sqlite and DEBUG is True`. `docker inspect` returned `.` (image cached), so **no pull** and a much faster build. `[Pipeline] withEnv` = the `environment { }` block being applied.
 - Tests run / passed: (Part 3)
 
 **Notes: Docker container lifecycle in a build (from build #3 log)**
@@ -342,7 +343,10 @@ Laptop (Windows) ── Docker Desktop engine
 | *(caught in review, 02/10/2026)* `dcocker {`. Would fail before any stage with `Invalid agent type "dcocker"` | Typo in the agent type. Allowed types: `any`, `none`, `label`, `docker`, `dockerfile` | Spell it `docker` |
 | *(caught in review)* `steps { }` written **inside** `agent { }`. Would fail with `Invalid config option "steps"...` | `agent` = *where* to run, `steps` = *what* to run. They are **siblings** inside `stage`, not nested | Close `agent { }` right after `docker { }`, then open `steps { }` |
 | *(caught in review, Part 2)* `SECRET_KEY` defined **twice** in `environment { }` | Typed the example line, then pasted the full list underneath it | Delete the duplicate. Each variable name only once. |
-| **Build #4 FAILED (02/10/2026):** `MultipleCompilationErrorsException: startup failed: WorkflowScript: 18: Duplicate environment variable name: "SECRET_KEY"` | Pushed commit `12cc58a` **before** fixing the duplicate. Jenkins builds what's on **GitHub**, not my local file. | Fixed locally (deleted the duplicate), then committed and pushed again. Result: _(fill in)_ |
+| *(caught in review, Part 3)* `dir(...) { sh ... }` written **directly in the stage**, outside `steps { }`. Would fail: `Unknown stage section "dir"... steps in a stage must be in a 'steps' block` | `dir` and `sh` are **steps**. A stage can only directly contain **sections** (`agent`, `environment`, `steps`, `when`, `post`) | Move the `dir` block **inside** `steps { }` |
+| *(caught in review, Part 3)* `dir('portfoliio')` | Typo. **`dir()` silently creates a missing folder**, so the error would only show later: `Could not open requirements file: [Errno 2] No such file or directory` | Spell it `portfolio`, exactly as in the repo |
+| *(caught in review, Part 3)* Old check lines (`echo TEST_DB...`) left in `steps` | Added the new code instead of **replacing** the old | Remove the leftover lines |
+| **Build #4 FAILED (02/10/2026):** `MultipleCompilationErrorsException: startup failed: WorkflowScript: 18: Duplicate environment variable name: "SECRET_KEY"` | Pushed commit `12cc58a` **before** fixing the duplicate. Jenkins builds what's on **GitHub**, not my local file. | Fixed locally (deleted the duplicate), then committed and pushed again. **Result: ✅ build #5 passed (commit `b30b9ed`).** |
 | *(caught in review)* `sh 'pytjhon --version'`. Would fail at runtime: `pytjhon: not found`, `exit code 127` | Typo in a shell command. Jenkins doesn't check what's inside `sh '...'` | Spell it `python` |
 
 **Lessons**
@@ -350,6 +354,8 @@ Laptop (Windows) ── Docker Desktop engine
 - **Exit code 127** = command not found.
 - **Reading a Groovy compile error:** only the first lines matter. `WorkflowScript` = my Jenkinsfile, `NN:` / `@ line NN, column NN` = location, then the message in plain English, and `^` points at the spot. The `at org.codehaus...` / `at hudson...` lines are a Java stack trace and can be ignored.
 - A compile error has **no `[Pipeline] stage` lines at all**. Nothing ran, not even Checkout SCM.
+- **Sections vs steps:** *sections* (`agent`, `environment`, `steps`, `when`, `post`) go directly in a `stage`. *Steps* (`sh`, `echo`, `dir`, `withCredentials`) must be inside `steps { }`.
+- `dir('x')` **creates** folder `x` if it doesn't exist, so a typo there fails later with a misleading error. When a file "isn't found", check the folder name first.
 - **Jenkins builds what's pushed to GitHub, not my local file.** Habit: run `git diff --staged` (or ask for a review) before every push.
 - Correct stage layout:
   ```

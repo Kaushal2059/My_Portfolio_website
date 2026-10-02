@@ -1,5 +1,5 @@
-// Step 5, Part 1 – run a stage inside a python:3.12 container.
-// Goal: prove the Docker agent works before adding the Django tests.
+// Step 5, Part 3 – run the Django tests inside a python:3.12 container.
+// Same job as "test" in .github/workflows/deploy.yml.
 
 pipeline {
     // Default agent: any free node (for us, the built-in node). Code is checked out here.
@@ -28,12 +28,18 @@ pipeline {
                 FACEBOOK_URL   = 'https://facebook.com'
                 INSTAGRAM_URL  = 'https://instagram.com'
                 GITHUB_URL     = 'https://github.com'
-
-
             }
             steps {
                 sh 'python --version'
-                sh 'echo "TEST_DB is $TEST_DB and DEBUG is $DEBUG"'
+                dir('portfolio') {
+                    sh '''
+                        python -m venv .venv
+                        . .venv/bin/activate
+                        pip install --upgrade pip
+                        pip install -r requirements.txt
+                        python manage.py test --verbosity=2
+                    '''
+                }
             }
         }
     }
