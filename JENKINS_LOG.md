@@ -252,7 +252,17 @@ GitHub Actions to Jenkins: what was done, why, the errors hit and how each was f
 **Errors faced**
 | Error | Cause | Fix |
 |-------|-------|-----|
-| | | |
+| `git push` → `remote: Permission to Kaushal2059/My_Portfolio_website.git denied to Kaushal-rentalbux` / `403` (02/10/2026) | Windows had saved the login for my **work** GitHub account (`Kaushal-rentalbux`) and used it for every push to github.com. That account has no write access to my **personal** repo (`Kaushal2059`). | **Chosen fix:** added `Kaushal-rentalbux` as a **collaborator** on the repo (repo Settings → Collaborators → Add people), accepted the invite while logged in as `Kaushal-rentalbux`, then pushed again. *(Alternative not used: put `Kaushal2059@` in the remote URL and sign in as the personal account.)* Result: _(fill in)_ |
+
+**Lessons from the 403 error**
+- **403 = Forbidden.** GitHub knows who you are but won't let you do this. (**401** would mean "I don't know who you are".)
+- The message names the account that was used (`denied to <account>`). Read it closely, because it often shows the wrong account is logged in.
+- Git Credential Manager saves **one login per host** (github.com) by default. With two GitHub accounts, put the username in the remote URL so each repo uses the right one.
+- **Collaborator** on a personal repo = full **write** access (push, branches). Personal repos have no finer roles; only organisation repos have Read/Triage/Write/Maintain/Admin.
+- The invite must be **accepted** by the invited account before the access works.
+- **Fine-grained tokens can't reach collaborator repos.** A fine-grained token only covers repos **owned** by the token's account. A token made on `Kaushal-rentalbux` can't select `Kaushal2059/My_Portfolio_website`, so the Jenkins token must be made on `Kaushal2059` (or be a classic token with `repo` scope).
+- **Green squares (contribution graph)** go to the account whose **verified email matches the commit's author email**, not to the account that pushed. They only count once the commit is on the **default branch** (`main`). So: push with `Kaushal-rentalbux`, but set this repo's `user.email` to the email of `Kaushal2059` (or its `...@users.noreply.github.com` address) to get credit on the personal profile. Check with `git log -1 --format="%an <%ae>"`.
+- Also check commit identity per repo: `git config user.name` / `git config user.email` (without `--global`, this sets them for this repo only).
 
 ---
 
@@ -260,3 +270,4 @@ GitHub Actions to Jenkins: what was done, why, the errors hit and how each was f
 
 | Step | Error message (short) | Root cause | Fix |
 |------|----------------------|-----------|-----|
+| 4 | `git push` 403 – permission denied to `Kaushal-rentalbux` | Saved work GitHub login used for personal repo | Added `Kaushal-rentalbux` as a repo collaborator and accepted the invite |
