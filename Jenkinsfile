@@ -14,7 +14,6 @@ pipeline {
                 }
             }
             environment {
-                SECRET_KEY = 'test-secret-key-for-ci-not-real'
                 SECRET_KEY     = 'test-secret-key-for-ci-not-real'
                 DEBUG          = 'True'
                 ALLOWED_HOSTS  = 'localhost,127.0.0.1'

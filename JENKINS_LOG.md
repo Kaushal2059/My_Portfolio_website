@@ -342,11 +342,15 @@ Laptop (Windows) ── Docker Desktop engine
 | *(caught in review, 02/10/2026)* `dcocker {`. Would fail before any stage with `Invalid agent type "dcocker"` | Typo in the agent type. Allowed types: `any`, `none`, `label`, `docker`, `dockerfile` | Spell it `docker` |
 | *(caught in review)* `steps { }` written **inside** `agent { }`. Would fail with `Invalid config option "steps"...` | `agent` = *where* to run, `steps` = *what* to run. They are **siblings** inside `stage`, not nested | Close `agent { }` right after `docker { }`, then open `steps { }` |
 | *(caught in review, Part 2)* `SECRET_KEY` defined **twice** in `environment { }` | Typed the example line, then pasted the full list underneath it | Delete the duplicate. Each variable name only once. |
+| **Build #4 FAILED (02/10/2026):** `MultipleCompilationErrorsException: startup failed: WorkflowScript: 18: Duplicate environment variable name: "SECRET_KEY"` | Pushed commit `12cc58a` **before** fixing the duplicate. Jenkins builds what's on **GitHub**, not my local file. | Fixed locally (deleted the duplicate), then committed and pushed again. Result: _(fill in)_ |
 | *(caught in review)* `sh 'pytjhon --version'`. Would fail at runtime: `pytjhon: not found`, `exit code 127` | Typo in a shell command. Jenkins doesn't check what's inside `sh '...'` | Spell it `python` |
 
 **Lessons**
 - **Two kinds of errors:** structure/syntax errors (Jenkinsfile grammar) fail **before** the build starts, while command errors inside `sh` fail **during** the build, when that step runs.
 - **Exit code 127** = command not found.
+- **Reading a Groovy compile error:** only the first lines matter. `WorkflowScript` = my Jenkinsfile, `NN:` / `@ line NN, column NN` = location, then the message in plain English, and `^` points at the spot. The `at org.codehaus...` / `at hudson...` lines are a Java stack trace and can be ignored.
+- A compile error has **no `[Pipeline] stage` lines at all**. Nothing ran, not even Checkout SCM.
+- **Jenkins builds what's pushed to GitHub, not my local file.** Habit: run `git diff --staged` (or ask for a review) before every push.
 - Correct stage layout:
   ```
   stage('X')
@@ -366,3 +370,4 @@ Laptop (Windows) ── Docker Desktop engine
 | Step | Error message (short) | Root cause | Fix |
 |------|----------------------|-----------|-----|
 | 4 | `git push` 403 – permission denied to `Kaushal-rentalbux` | Saved work GitHub login used for personal repo | Added `Kaushal-rentalbux` as a repo collaborator and accepted the invite |
+| 5 | `Duplicate environment variable name: "SECRET_KEY"` (build #4) | Same variable twice in `environment { }`, pushed before fixing | Remove the duplicate, commit, push |
