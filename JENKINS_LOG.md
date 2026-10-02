@@ -21,8 +21,8 @@ GitHub Actions to Jenkins: what was done, why, the errors hit and how each was f
 | 4 | First "hello world" Jenkinsfile + Multibranch Pipeline job | Done (02/10/2026) |
 | 5 | Test stage (Django tests inside a Python 3.12 container) | Done (02/10/2026) – 4/4 tests pass |
 | 6 | Staging stage (build + push `dev-*` image on `dev` branch) | Done (02/10/2026): first real push from dev #1. *Still to check: Docker Hub tags page + staging VM pull.* |
-| 7 | Production stage (build + push `latest` image on `main`, with manual approval) | In progress |
-| 8 | Automatic triggers (GitHub webhook / polling) | Not started |
+| 7 | Production stage (build + push `latest` image on `main`, with manual approval) | Done (02/10/2026): main #1 approved and pushed `latest` |
+| 8 | Automatic triggers (GitHub webhook / polling) | In progress: polling |
 | 9 | Tidy up (post actions, cleanup, decide what to do with GitHub Actions) | Not started |
 
 ---
@@ -554,11 +554,20 @@ pipeline
 - Plan: click **Abort** once (build → ABORTED, nothing pushed), then **Build Now** and **Deploy**.
 
 **Result**
-- jenkins-setup build (no prompt?):
-- dev build (staging):
-- main build, Abort:
-- main build, Deploy:
-- Docker Hub `latest` updated?:
+- jenkins-setup build (no prompt?): *(not reported)*
+- dev build (staging): *(not reported)*
+- main build, Abort: *skipped (optional). Can try any time with Build Now on `main`, then Abort.*
+- **main build, Deploy ✅ (main #1, 02/10/2026):** commit `a3fef65` "complete jenkins cicd with approval gate for main". Started by **Branch indexing**. Test ✅ 4/4 → Deploy staging ⏭ skipped → **Deploy production paused**: `Deploy this build to PRODUCTION?` → **`Approved by kaushal Rupakheti`** → built and pushed `iamkaushal20/portfolio:latest` + `:a3fef6574085370833aa84cfc9778427b188ad57` (both digest `sha256:57f0c7c8440d…`) → logout → `Finished: SUCCESS`. (Forgot the screenshot of the prompt, but the log is the proof.)
+- Docker Hub `latest` updated?: pushed per log *(check the Tags page)*
+- Production VM pulled the new `latest`?: *(check)*
+
+**Notes from the main #1 log**
+- `Approved by <user>` is stored permanently in the build: an **audit trail** of who released what, and when.
+- The push uploaded **only 2 new layers**. The rest were `Layer already exists` from the staging push (shared layers are stored once on Docker Hub).
+- Two `withEnv` before `Test` = the **top-level `environment { IMAGE_NAME }`** applied to the whole pipeline.
+- `.dockerignore` fix carried through: `transferring context: 157.16kB`.
+
+**🏁 Jenkins now replaces the GitHub `test`, `deploy-staging` and `deploy-production` jobs, plus a manual approval gate for production.**
 
 **Errors faced**
 | Error | Cause | Fix |
@@ -571,6 +580,38 @@ pipeline
 **Lessons**
 - **Copy-paste = every value that should differ is a hidden bug.** Read the copy line by line: should this match the original?
 - The worst bugs are the ones that stay **green**. A wrong tag pushes successfully, so Jenkins can't tell you it's the wrong one.
+
+---
+
+### Step 8 – Automatic triggers: polling (02/10/2026)
+
+**Decision:** Option 1, **polling**. Jenkins runs on `localhost:8080`, so GitHub **can't reach it** for a webhook (Option 2 would need a tunnel like smee.io or ngrok).
+
+**Notes**
+- **Webhook (push)** = GitHub calls Jenkins the moment I push. Instant, but needs Jenkins reachable from the internet.
+- **Polling (pull)** = Jenkins asks GitHub every N minutes "anything new?". Works behind a laptop/firewall, with a delay of up to N minutes.
+- In a **Multibranch** job, polling = **"Scan Multibranch Pipeline Triggers → Periodically if not otherwise run"**. Each scan:
+  - finds **new** branches with a Jenkinsfile and builds them,
+  - builds existing branches that have **new commits**,
+  - removes jobs for **deleted** branches (per *Orphaned Item Strategy*).
+- "**if not otherwise run**" = the timer resets whenever a scan happens anyway (e.g. I click Scan Repository Now).
+- *Alternative not used:* `triggers { pollSCM('H/5 * * * *') }` inside the Jenkinsfile. It polls each branch, but **can't discover new branches**, so the Multibranch scan is the better fit.
+- Each scan uses GitHub API calls (limit 5,000/hour with a token). A few minutes' interval is far below that.
+- If the laptop or Jenkins is **off or asleep**, nothing builds. The next scan after it wakes catches up.
+- End-to-end delay = scan interval + build time + the VM's cron interval (~5 min).
+
+**What I did**
+-
+
+**Result**
+- Interval chosen:
+- Test push commit:
+- Build started automatically? Cause shown:
+
+**Errors faced**
+| Error | Cause | Fix |
+|-------|-------|-----|
+| | | |
 
 ---
 
