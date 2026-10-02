@@ -5,6 +5,11 @@ pipeline {
     // Default agent: any free node (for us, the built-in node). Code is checked out here.
     agent any
 
+    // Pipeline-level variables: visible to every stage.
+    environment {
+        IMAGE_NAME = 'iamkaushal20/portfolio'
+    }
+
     stages {
         stage('Test') {
             agent {
@@ -46,9 +51,6 @@ pipeline {
             when {
                 branch 'dev'
             }
-            environment {
-                IMAGE_NAME = 'iamkaushal20/portfolio'
-            }
             steps {
                 sh 'docker build -t ${IMAGE_NAME}:dev-latest -t ${IMAGE_NAME}:dev-${GIT_COMMIT} portfolio'
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
@@ -56,6 +58,28 @@ pipeline {
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         docker push ${IMAGE_NAME}:dev-latest
                         docker push ${IMAGE_NAME}:dev-${GIT_COMMIT}
+                        docker logout
+                    '''
+                }       
+            }
+        }
+        stage('Deploy production') {
+            when {
+                beforeInput true
+                branch 'main'
+            }
+            input {
+                message 'Deploy this build to PRODUCTION?'
+                ok 'Deploy'
+            }
+
+            steps {
+                sh 'docker build -t ${IMAGE_NAME}:latest -t ${IMAGE_NAME}:${GIT_COMMIT} portfolio'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push ${IMAGE_NAME}:latest
+                        docker push ${IMAGE_NAME}:${GIT_COMMIT}
                         docker logout
                     '''
                 }       

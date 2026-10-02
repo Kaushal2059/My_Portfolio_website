@@ -20,8 +20,8 @@ GitHub Actions to Jenkins: what was done, why, the errors hit and how each was f
 | 3 | Store credentials (GitHub, Docker Hub) in Jenkins | Done (02/10/2026) – confirm both IDs exist |
 | 4 | First "hello world" Jenkinsfile + Multibranch Pipeline job | Done (02/10/2026) |
 | 5 | Test stage (Django tests inside a Python 3.12 container) | Done (02/10/2026) – 4/4 tests pass |
-| 6 | Staging stage (build + push `dev-*` image on `dev` branch) | In progress |
-| 7 | Production stage (build + push `latest` image on `main`, with manual approval) | Not started |
+| 6 | Staging stage (build + push `dev-*` image on `dev` branch) | Done (02/10/2026): first real push from dev #1. *Still to check: Docker Hub tags page + staging VM pull.* |
+| 7 | Production stage (build + push `latest` image on `main`, with manual approval) | In progress |
 | 8 | Automatic triggers (GitHub webhook / polling) | Not started |
 | 9 | Tidy up (post actions, cleanup, decide what to do with GitHub Actions) | Not started |
 
@@ -459,6 +459,23 @@ pipeline
 - Part 3 written **correctly on the first try** (02/10/2026): `withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', ...)])` around `sh '''` login (`--password-stdin`) → push `dev-latest` → push `dev-${GIT_COMMIT}` → logout `'''`. Single quotes, inside `steps`, braces balanced. Not pushed yet.
 - Found before Part 4: `dev` is **7 commits behind `main`** and has nothing of its own. Merging `jenkins-setup` (based on `main`) into `dev` will also bring those 7 commits (S3 media, AWS job, home page changes, settings.py edits), so **staging will get the same app code as `main`**.
 - **Decision (02/10/2026): Option A.** Temporarily **disable the GitHub Actions workflow** (Actions → CI/CD Pipeline → ⋯ → Disable workflow) so that only Jenkins pushes `dev-latest` during the test. Re-enable or retire it in Step 9.
+- **Part 4 ✅: first real staging deployment (dev #1, 02/10/2026).** Disabled the GitHub workflow, merged `jenkins-setup` → `dev` locally in Git Bash, pushed `dev`, and ran **Scan Repository Now**. Jenkins found the Jenkinsfile on `dev` and built it automatically. Commit `e45c3aa` (message `"."`, so use descriptive messages in future).
+  - Test ✅ 4/4, **Deploy staging ✅ actually ran** (not skipped).
+  - Pushed `iamkaushal20/portfolio:dev-latest` and `:dev-e45c3aa6a3814a270786505cfeb2446b88ca2f2e`, both **digest `sha256:add68b6af734…`**.
+  - `Login Succeeded` → push → push → `Removing login credentials` → `Finished: SUCCESS`.
+
+**Notes from the dev #1 log**
+| Log line | Meaning |
+|---|---|
+| `Branch indexing` | Build started by the **repository scan** |
+| `Cloning the remote Git repository`, `First time build` | Each branch gets its **own workspace** (`portfolio-site_dev`) |
+| `transferring context: 157.14kB` | `.venv/` fix works: **106.32MB → 157kB** |
+| `#6–#9 CACHED` | Docker reused layers from the earlier build. Only `COPY . .` re-ran, so the build took <1s. |
+| `Masking supported pattern matches of $DOCKER_PASS`, `+ echo ****` | `withCredentials` masking the token |
+| `WARNING! Your credentials are stored unencrypted in '/var/jenkins_home/.docker/config.json'` | Proof that `docker login` writes the token to disk, which is why `docker logout` is needed |
+| `Mounted from jenkins/jenkins` | Docker Hub already had that layer in another public repo, so it linked it instead of uploading |
+| 2nd push: `Layer already exists`, same digest | One image, two tags, nothing new uploaded |
+| Many repeated `Waiting` lines | Docker progress output without a terminal. Noise. |
 
 - **Part 2 ✅ tested with Replay** (build #10, replay of #9, 02/10/2026). Changed `branch 'dev'` → `branch 'jenkins-setup'` **in the Replay editor only**. Both stages green. Image built and tagged `iamkaushal20/portfolio:dev-latest` and `:dev-b30b9ed59caef5b5f2687706aaf2ccf868ac5089`.
 - **Replay re-uses the commit of the replayed build** (here `b30b9ed`). Only the Jenkinsfile text is swapped for what I pasted.
@@ -488,7 +505,7 @@ pipeline
 |-------|-------|-----|
 | *(caught in review, Part 1)* `steps { }` written **inside** `when { }` | Same pattern as `steps` inside `agent` in Step 5. `when` only holds **conditions**. `steps` is its sibling. | Close `when` right after `branch 'dev'`, then open `steps` |
 | *(caught in review)* Extra `script { docker.build("portfolio:latest") }` directly in the stage | Jumped ahead. `script` is a **step** (must be in `steps`). `latest` is the **production** tag. No `<dockerhub-user>/` prefix. | Removed. Build is done properly in Part 2 with `dev-latest` / `dev-<commit>` tags. |
-| **Found in build #10 log:** `transferring context: 106.32MB`, far too big for a small Django app | The **Test stage creates `portfolio/.venv`** (~100 MB) in the **shared workspace**. `docker build ... portfolio` sends it as context. `.dockerignore` excludes `venv/` but **not `.venv/`**, and `COPY . .` puts it **inside the image**. (Never happened on GitHub Actions: each job had its own fresh VM.) | Add `.venv/` to `portfolio/.dockerignore`. Check: next build's `transferring context:` should be a few MB. *(First attempt saved as `.vnev/`, a typo that would match nothing. Corrected to `.venv/` by Claude at my request, 02/10/2026. `.gitignore` already had `.venv/` on line 5.)* Result: _(fill in after next build)_ |
+| **Found in build #10 log:** `transferring context: 106.32MB`, far too big for a small Django app | The **Test stage creates `portfolio/.venv`** (~100 MB) in the **shared workspace**. `docker build ... portfolio` sends it as context. `.dockerignore` excludes `venv/` but **not `.venv/`**, and `COPY . .` puts it **inside the image**. (Never happened on GitHub Actions: each job had its own fresh VM.) | Add `.venv/` to `portfolio/.dockerignore`. Check: next build's `transferring context:` should be a few MB. *(First attempt saved as `.vnev/`, a typo that would match nothing. Corrected to `.venv/` by Claude at my request, 02/10/2026. `.gitignore` already had `.venv/` on line 5.)* **Result: ✅ dev #1 `transferring context: 157.14kB` (was 106.32MB).** |
 | PR page stuck on **"Checking for the ability to merge automatically…"** (02/10/2026) | GitHub's background mergeability check. The page often just doesn't refresh. Not Jenkins-related. | Refresh the page (F5). If still stuck, check githubstatus.com. Result: _(fill in)_ |
 | PR showed **only 7 commits** (all mine), but `dev` is 7 behind `main`, so a PR into `dev` should show ~14 | Probably opened with **base = `main`** (GitHub's default) instead of `dev` | Check "wants to merge into ___". If `main`: **Edit → change base to `dev`**. Never merge this into `main` (production). Result: _(fill in)_ |
 | *(caught in review)* One `}` too many at the end of the file | Brace count off after the extra block | After the last stage's `}` there must be exactly **2**: `stages`, then `pipeline` |
@@ -503,6 +520,57 @@ pipeline
 - `venv/` and `.venv/` are **different names**. `.dockerignore` matches exactly.
 - **Always check a PR's base branch** ("wants to merge into ___"). GitHub defaults to `main`. Sanity check: does the commit count match what you expect?
 - **✓ / ✗ next to commits on GitHub** = Jenkins commit statuses (the *Commit statuses* permission from Step 3). Each shows the **latest** build of that commit, so a later failed build or replay on the same commit replaces an earlier ✓. A commit Jenkins hasn't built yet has no mark.
+
+---
+
+### Step 7 – Production: build + push `latest` on `main`, with manual approval (02/10/2026)
+
+**Plan**
+- Part 1: `Deploy production` stage with `when { branch 'main' }` and the **production tags** `latest` + `${GIT_COMMIT}` (as in `deploy.yml` lines 106–107).
+- Part 2: an **approval gate** (`input`), so Jenkins pauses until I click *Deploy*.
+- Part 3: release to `main` and watch the first production deployment.
+
+**Notes**
+- Production tags: `iamkaushal20/portfolio:latest` (pulled by the production VM's cron) and `iamkaushal20/portfolio:<commit>` (for rollback). Staging uses the `dev-` prefix.
+- An **`environment { }` at the top level** of `pipeline` (next to `agent any`) is visible to **every stage**. Put shared values like `IMAGE_NAME` there **once**.
+
+**What I did**
+- Started Part 1 on my own by **copying the staging stage** as a template (02/10/2026). Structure correct (`when` / `environment` / `steps` siblings, braces balanced).
+- **Part 1 ✅ verified (02/10/2026):** production builds and pushes `${IMAGE_NAME}:latest` + `${IMAGE_NAME}:${GIT_COMMIT}`. `IMAGE_NAME` comes from the top-level `environment`. Not pushed to `main` yet (no approval gate).
+
+**Notes: Part 2 (approval gate)**
+- **`input { message '...'; ok 'Deploy' }`** = a stage **section** that **pauses** the build until a person clicks **Deploy** (continue) or **Abort** (build → **ABORTED**, nothing pushed).
+- ⚠️ **Default order is `input` → `when`**, so without care every branch (dev, jenkins-setup) would be asked "Deploy to PRODUCTION?" and then skip the stage anyway.
+- **`beforeInput true`** (first line in `when`) flips it to **`when` → `input`**, so only `main` builds ask.
+- While waiting, the build shows a pulsing stage in Stage View, with Deploy/Abort links in the Console Output. Once approved, the log shows `Approved by <user>`.
+- Possible later improvements (Step 9): a timeout so a forgotten prompt doesn't wait forever, and `submitter` to limit who can approve.
+- **Part 2 ✅ verified (02/10/2026):** `when { beforeInput true; branch 'main' }` + `input { message 'Deploy this build to PRODUCTION?'; ok 'Deploy' }`, written correctly first time.
+
+**Notes: Part 3 (release flow)**
+- Promotion path: **`jenkins-setup` → `dev` (staging, check) → `main` (production, approve)**. Production only gets code that has already been through staging.
+- ⚠️ Before pushing to `main`: confirm the GitHub workflow is **still disabled**. Otherwise `deploy-production` **and `deploy-aws`** would also run.
+- Test `beforeInput` on `jenkins-setup` first: both deploy stages skipped, **no prompt**.
+- `git merge dev` on `main` should be a **Fast-forward** (`dev` contains all of `main` plus the Jenkins commits).
+- Plan: click **Abort** once (build → ABORTED, nothing pushed), then **Build Now** and **Deploy**.
+
+**Result**
+- jenkins-setup build (no prompt?):
+- dev build (staging):
+- main build, Abort:
+- main build, Deploy:
+- Docker Hub `latest` updated?:
+
+**Errors faced**
+| Error | Cause | Fix |
+|-------|-------|-----|
+| *(caught in review)* 🔴 Production stage built and pushed **`dev-latest`** and **`dev-${GIT_COMMIT}`** | Copy-paste from staging without changing the tags | Use **`latest`** and **`${GIT_COMMIT}`** in the build `-t` flags and both `docker push` lines. Effect if missed: `main` code overwrites **staging**, production **never** gets `latest`, and the build still shows SUCCESS. |
+| *(caught in review)* `IMAGE_NAME` defined twice (staging + production stages) | Copy-paste | Moved to a **top-level** `environment { }` under `agent any` (done by Claude at my request, 02/10/2026) |
+| *(caught in review, 2nd check)* Line 72: build tag still `dev-${GIT_COMMIT}` | Only half of the tags changed | Should be `${IMAGE_NAME}:${GIT_COMMIT}` |
+| *(caught in review, 2nd check)* Line 77: `docker push ${IMAGE_NAME}:{GIT_COMMIT}`, **missing `$`** | Typo. Without `$` the shell treats `{GIT_COMMIT}` as plain text, so it would try to push a tag literally named `{GIT_COMMIT}`. `{ }` aren't allowed in tags, so the push **fails** (`invalid reference format`), and only after `latest` was already pushed (and `-e` then skips `docker logout`). | Should be `${IMAGE_NAME}:${GIT_COMMIT}` |
+
+**Lessons**
+- **Copy-paste = every value that should differ is a hidden bug.** Read the copy line by line: should this match the original?
+- The worst bugs are the ones that stay **green**. A wrong tag pushes successfully, so Jenkins can't tell you it's the wrong one.
 
 ---
 
