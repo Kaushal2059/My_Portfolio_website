@@ -423,6 +423,35 @@ pipeline
 - A `docker push` of the second tag uploads nothing new: every layer says `Layer already exists`.
 - ⚠️ **Never test a push to `dev-latest` from a non-dev branch.** The staging VM's cron pulls `dev-latest` within ~5 minutes, so you'd deploy the wrong code to staging.
 
+**Notes: Part 4 from the command line (GitHub CLI `gh`)**
+| Task | Command |
+|---|---|
+| Install (once) | `winget install --id GitHub.cli`, reopen the terminal, then `gh auth login` (GitHub.com → HTTPS → browser, as `Kaushal-rentalbux`) and `gh auth status` |
+| See PR + base branch | `gh pr view jenkins-setup` or `gh pr view jenkins-setup --json number,baseRefName,headRefName,mergeable` |
+| Change base to `dev` | `gh pr edit jenkins-setup --base dev` |
+| Commit count | `gh pr view jenkins-setup --json baseRefName,commits --jq "{base: .baseRefName, commits: (.commits \| length)}"` |
+| Disable / enable workflow | `gh workflow disable "CI/CD Pipeline"` / `gh workflow enable "CI/CD Pipeline"`; check with `gh workflow list --all` |
+| Merge (keep branch) | `gh pr merge jenkins-setup --merge` (no `--delete-branch`) |
+| Check `dev` | `git fetch origin`, `git log --oneline -3 origin/dev`, `git show origin/dev:Jenkinsfile` |
+| Trigger Jenkins scan | `curl.exe -X POST -u "USER:API_TOKEN" "http://localhost:8080/job/portfolio-site/build?delay=0"` (for Multibranch, `/build` = scan). API token: my name → Security → API Token. |
+- `mergeable: UNKNOWN` = GitHub hasn't finished the merge check yet (the spinner in the web UI).
+
+**Notes: merging into `dev` locally with Git Bash (no PR needed)**
+| # | Command | Why |
+|---|---|---|
+| 0 | *Disable the GitHub workflow first* | Pushing to `dev` triggers GitHub Actions, just like merging a PR |
+| 1 | `git switch jenkins-setup`, `git status`, then commit + `git push` if anything changed | Only merge finished, committed work |
+| 2 | `git fetch origin` | Get the latest branch info |
+| 3 | `git switch dev` | No local `dev` yet, so Git creates one **tracking `origin/dev`** |
+| 4 | `git merge jenkins-setup` | Likely **Fast-forward**: `dev` has no commits of its own, so Git just moves the pointer forward. `--no-ff` forces a merge commit. |
+| 5 | `git log --oneline -5`, `ls Jenkinsfile` | Check before pushing |
+| 6 | `git push origin dev` | Publish |
+| 7 | `git switch jenkins-setup` | Go back so new edits don't land on `dev` |
+- **Fast-forward** = no new commit, the branch pointer just moves ahead. Only possible when the target has nothing the source lacks.
+- After a local merge, an open PR **into `dev`** is marked *Merged* automatically. A PR **into `main`** should be **closed without merging**.
+- In PowerShell, use **`curl.exe`**, because `curl` is an alias for `Invoke-WebRequest`.
+- A Jenkins API token is a password. Never paste or commit it.
+
 **What I did**
 - Part 1 written (when + echo). Not pushed yet. Planning to push Parts 1 + 2 together.
 - Part 2 written **correctly on the first try** (02/10/2026): `environment { IMAGE_NAME = 'iamkaushal20/portfolio' }` + `sh 'docker build -t ${IMAGE_NAME}:dev-latest -t ${IMAGE_NAME}:dev-${GIT_COMMIT} portfolio'`.
@@ -460,6 +489,8 @@ pipeline
 | *(caught in review, Part 1)* `steps { }` written **inside** `when { }` | Same pattern as `steps` inside `agent` in Step 5. `when` only holds **conditions**. `steps` is its sibling. | Close `when` right after `branch 'dev'`, then open `steps` |
 | *(caught in review)* Extra `script { docker.build("portfolio:latest") }` directly in the stage | Jumped ahead. `script` is a **step** (must be in `steps`). `latest` is the **production** tag. No `<dockerhub-user>/` prefix. | Removed. Build is done properly in Part 2 with `dev-latest` / `dev-<commit>` tags. |
 | **Found in build #10 log:** `transferring context: 106.32MB`, far too big for a small Django app | The **Test stage creates `portfolio/.venv`** (~100 MB) in the **shared workspace**. `docker build ... portfolio` sends it as context. `.dockerignore` excludes `venv/` but **not `.venv/`**, and `COPY . .` puts it **inside the image**. (Never happened on GitHub Actions: each job had its own fresh VM.) | Add `.venv/` to `portfolio/.dockerignore`. Check: next build's `transferring context:` should be a few MB. *(First attempt saved as `.vnev/`, a typo that would match nothing. Corrected to `.venv/` by Claude at my request, 02/10/2026. `.gitignore` already had `.venv/` on line 5.)* Result: _(fill in after next build)_ |
+| PR page stuck on **"Checking for the ability to merge automatically…"** (02/10/2026) | GitHub's background mergeability check. The page often just doesn't refresh. Not Jenkins-related. | Refresh the page (F5). If still stuck, check githubstatus.com. Result: _(fill in)_ |
+| PR showed **only 7 commits** (all mine), but `dev` is 7 behind `main`, so a PR into `dev` should show ~14 | Probably opened with **base = `main`** (GitHub's default) instead of `dev` | Check "wants to merge into ___". If `main`: **Edit → change base to `dev`**. Never merge this into `main` (production). Result: _(fill in)_ |
 | *(caught in review)* One `}` too many at the end of the file | Brace count off after the extra block | After the last stage's `}` there must be exactly **2**: `stages`, then `pipeline` |
 | | *Fixed `when` myself. Claude removed the `script` block and the extra `}` at my request (02/10/2026).* | |
 
@@ -470,6 +501,8 @@ pipeline
 - **In Jenkins, all stages share one workspace** (unlike GitHub Actions jobs, which each get a new VM). Files one stage creates (`.venv`, build output) are seen by later stages, including `docker build`.
 - **Read `transferring context: NN MB`** in every `docker build` log. A big number means unwanted files are getting into the build. Fix them with `.dockerignore`.
 - `venv/` and `.venv/` are **different names**. `.dockerignore` matches exactly.
+- **Always check a PR's base branch** ("wants to merge into ___"). GitHub defaults to `main`. Sanity check: does the commit count match what you expect?
+- **✓ / ✗ next to commits on GitHub** = Jenkins commit statuses (the *Commit statuses* permission from Step 3). Each shows the **latest** build of that commit, so a later failed build or replay on the same commit replaces an earlier ✓. A commit Jenkins hasn't built yet has no mark.
 
 ---
 
