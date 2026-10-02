@@ -15,11 +15,11 @@ GitHub Actions to Jenkins: what was done, why, the errors hit and how each was f
 
 | # | Step | Status |
 |---|------|--------|
-| 1 | Learn the core Jenkins ideas and check the existing Jenkins setup | Partly done (nodes info still needed) |
+| 1 | Learn the core Jenkins ideas and check the existing Jenkins setup | Done (02/10/2026) |
 | 2 | Install and check the plugins we need | Done (01/10/2026) |
 | 3 | Store credentials (GitHub, Docker Hub) in Jenkins | Done (02/10/2026) – confirm both IDs exist |
-| 4 | First "hello world" Jenkinsfile + Multibranch Pipeline job | In progress |
-| 5 | Test stage (Django tests inside a Python 3.12 container) | Not started |
+| 4 | First "hello world" Jenkinsfile + Multibranch Pipeline job | Done (02/10/2026) |
+| 5 | Test stage (Django tests inside a Python 3.12 container) | In progress |
 | 6 | Staging stage (build + push `dev-*` image on `dev` branch) | Not started |
 | 7 | Production stage (build + push `latest` image on `main`, with manual approval) | Not started |
 | 8 | Automatic triggers (GitHub webhook / polling) | Not started |
@@ -83,9 +83,9 @@ GitHub Actions to Jenkins: what was done, why, the errors hit and how each was f
 **Environment findings**
 - Jenkins version:
 - Jenkins container name / image:
-- How the Docker agent is set up (Cloud / permanent node / Docker socket on controller): Not a Docker Cloud (the "Docker" cloud plugin isn't installed). Waiting on the Nodes page.
-- Node names and labels:
-- Docker CLI available on the agent? (yes/no):
+- How the Docker agent is set up (Cloud / permanent node / Docker socket on controller): **Docker socket on the controller ("Docker-outside-of-Docker")**. The Jenkins container has the Docker CLI and talks to **Docker Desktop's** engine on my laptop. No separate agent node. (Confirmed from build #2 log, 02/10/2026.)
+- Node names and labels: `built-in` (the controller itself)
+- Docker CLI available on the agent? (yes/no): **Yes**. Client 29.8.1 → Server Docker Desktop 4.93.0 (Engine 29.8.1)
 - Staging / production servers: local VM(s)
 - Do staging and production share one VM or use two?:
 - How the VM gets new images (cron pulling from Docker Hub?):
@@ -241,18 +241,46 @@ GitHub Actions to Jenkins: what was done, why, the errors hit and how each was f
 - Pushing uses **my own** GitHub login (Git Credential Manager may open a browser). The `github-creds` token is only for **Jenkins**.
 
 **What I did**
--
+- Created branch `jenkins-setup` from `main`, committed `Jenkinsfile` + `JENKINS_LOG.md`, pushed to GitHub (after fixing the 403 error below).
+- Created the `portfolio-site` Multibranch Pipeline job. The scan found `jenkins-setup` and ran it.
+- **Builds #1 and #2 both passed ✅**: Checkout SCM, Hello, Inspect agent, Check Docker all green (02/10/2026).
+
+**Notes: finding my way around the Jenkins UI**
+- Pages are nested: **Multibranch job** (`portfolio-site`) → **branch job** (`jenkins-setup`) → **build** (`#2`).
+- **Console Output is only on a build's page.** Click the build number (e.g. `#2`) in the Builds list, then **Console Output**. Direct URL pattern: `http://localhost:8080/job/<job>/job/<branch>/<build>/console`.
+- Clicking a cell in **Stage View** → **Logs** shows the log for just that stage.
+- **Declarative: Checkout SCM** = a stage Jenkins adds automatically to clone the branch (like `actions/checkout`). SCM = Source Code Management (Git).
+- **"No Changes"** = the build ran on the same commit as the previous build.
+- **Build Now** = re-run the pipeline on the latest commit of that branch.
 
 **Results from the "Inspect agent" stage**
-- Node name:
-- User:
-- OS:
-- `docker version` worked? (yes / error message):
+- Node name: `built-in`. The build ran on the **controller** (log line: `Running on Jenkins in /var/jenkins_home/workspace/portfolio-site_jenkins-setup`)
+- User: `jenkins`
+- OS: Linux, hostname `020b376d6ed9` (a container ID, which proves Jenkins itself runs inside a container)
+- `docker version` worked? (yes / error message): **Yes ✅**. Client 29.8.1, Server = Docker Desktop 4.93.0
+- Token check: log shows `Connecting to https://api.github.com using Kaushal2059/******`, so `github-creds` is on the **personal** account ✅
+- `GitHub has been notified of this commit's build result` = the *Commit statuses* permission works (✅ next to the commit on GitHub).
+
+**How to read a Jenkins console log**
+- `[Pipeline] stage` / `{ (Name)` = a stage starting. `// stage` = that stage ending.
+- `+ command` = the exact shell command being run (like `set -x`). The lines below it are its output.
+- `****` = a masked credential.
+- Last line `Finished: SUCCESS` / `FAILURE` / `ABORTED` = the overall result.
+
+**My setup in one picture: Docker-outside-of-Docker (DooD)**
+```
+Laptop (Windows) ── Docker Desktop engine
+   ├── container: Jenkins controller (has docker CLI, socket mounted)
+   │       └── "docker run python:3.12" → asks Docker Desktop
+   └── container: python:3.12 (a *sibling* of Jenkins, not inside it)
+```
+- Containers Jenkins starts are **siblings** on Docker Desktop, not children inside the Jenkins container.
+- ⚠️ Builds run on the **built-in node**. Fine for learning. In real teams, builds go to separate agents so a bad build can't damage the controller. (Possible improvement later.)
 
 **Errors faced**
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `git push` → `remote: Permission to Kaushal2059/My_Portfolio_website.git denied to Kaushal-rentalbux` / `403` (02/10/2026) | Windows had saved the login for my **work** GitHub account (`Kaushal-rentalbux`) and used it for every push to github.com. That account has no write access to my **personal** repo (`Kaushal2059`). | **Chosen fix:** added `Kaushal-rentalbux` as a **collaborator** on the repo (repo Settings → Collaborators → Add people), accepted the invite while logged in as `Kaushal-rentalbux`, then pushed again. *(Alternative not used: put `Kaushal2059@` in the remote URL and sign in as the personal account.)* Result: _(fill in)_ |
+| `git push` → `remote: Permission to Kaushal2059/My_Portfolio_website.git denied to Kaushal-rentalbux` / `403` (02/10/2026) | Windows had saved the login for my **work** GitHub account (`Kaushal-rentalbux`) and used it for every push to github.com. That account has no write access to my **personal** repo (`Kaushal2059`). | **Chosen fix:** added `Kaushal-rentalbux` as a **collaborator** on the repo (repo Settings → Collaborators → Add people), accepted the invite while logged in as `Kaushal-rentalbux`, then pushed again. *(Alternative not used: put `Kaushal2059@` in the remote URL and sign in as the personal account.)* **Result: ✅ pushed `jenkins-setup` successfully (02/10/2026).** |
 
 **Lessons from the 403 error**
 - **403 = Forbidden.** GitHub knows who you are but won't let you do this. (**401** would mean "I don't know who you are".)
@@ -263,6 +291,62 @@ GitHub Actions to Jenkins: what was done, why, the errors hit and how each was f
 - **Fine-grained tokens can't reach collaborator repos.** A fine-grained token only covers repos **owned** by the token's account. A token made on `Kaushal-rentalbux` can't select `Kaushal2059/My_Portfolio_website`, so the Jenkins token must be made on `Kaushal2059` (or be a classic token with `repo` scope).
 - **Green squares (contribution graph)** go to the account whose **verified email matches the commit's author email**, not to the account that pushed. They only count once the commit is on the **default branch** (`main`). So: push with `Kaushal-rentalbux`, but set this repo's `user.email` to the email of `Kaushal2059` (or its `...@users.noreply.github.com` address) to get credit on the personal profile. Check with `git log -1 --format="%an <%ae>"`.
 - Also check commit identity per repo: `git config user.name` / `git config user.email` (without `--global`, this sets them for this repo only).
+
+---
+
+### Step 5 – Test stage: Django tests in a Python 3.12 container (02/10/2026)
+
+**Notes**
+- **A stage can have its own `agent`.** `agent { docker { image 'python:3.12' } }` = start a `python:3.12` container and run this stage's steps inside it. That replaces `runs-on: ubuntu-latest` + `actions/setup-python`.
+- **`reuseNode true`** = use the same node and **workspace** as the top-level `agent any`, so the container sees the code that's already checked out.
+- **How the container gets my code (DooD):** Docker Pipeline notices Jenkins is running inside a container and starts the Python container with `--volumes-from <jenkins container>`, so both share `/var/jenkins_home`. In the log, look for a line like `Jenkins seems to be running inside container ...`.
+- The container runs as the **jenkins user (UID 1000)**, not root, so `pip install` into the system Python would fail with *Permission denied*. Fix: create a **virtualenv** (`.venv`) inside the workspace.
+- **`environment { }`** = environment variables for the stage (like `env:` in GitHub Actions). Only for **non-secret** values. Real secrets come from Credentials (Step 6).
+- **`dir('portfolio') { }`** = run steps inside a sub-folder (like `working-directory: portfolio`).
+- Each `sh` step is a **new shell**, so `cd` or `source` in one `sh` doesn't carry over to the next. That's why venv activation and the commands sit in the **same** `sh '''...'''` block.
+- The first run is slower because Docker has to download `python:3.12` (~1 GB). Later runs reuse the cached image.
+
+**GitHub Actions → Jenkins (test job)**
+
+| GitHub Actions | Jenkins |
+|---|---|
+| `runs-on: ubuntu-latest` + `setup-python@v5` (3.12) | `agent { docker { image 'python:3.12' } }` |
+| `defaults.run.working-directory: portfolio` | `dir('portfolio') { }` |
+| `env:` | `environment { }` |
+| `pip install -r requirements.txt` | same, inside a venv |
+| `python manage.py test --verbosity=2` | same |
+
+**What I did**
+- Decided to **write the Jenkinsfile myself**, with explanations line by line (02/10/2026). Building it in 3 parts:
+  - Part 1: Test stage with a Docker agent, running only `python --version`
+  - Part 2: add `environment { }` with the test values
+  - Part 3: `dir('portfolio')` + venv + install + `manage.py test`
+
+**Result**
+- Build number:
+- Tests run / passed:
+
+**Errors faced**
+| Error | Cause | Fix |
+|-------|-------|-----|
+| *(caught in review, 02/10/2026)* `dcocker {`. Would fail before any stage with `Invalid agent type "dcocker"` | Typo in the agent type. Allowed types: `any`, `none`, `label`, `docker`, `dockerfile` | Spell it `docker` |
+| *(caught in review)* `steps { }` written **inside** `agent { }`. Would fail with `Invalid config option "steps"...` | `agent` = *where* to run, `steps` = *what* to run. They are **siblings** inside `stage`, not nested | Close `agent { }` right after `docker { }`, then open `steps { }` |
+| *(caught in review)* `sh 'pytjhon --version'`. Would fail at runtime: `pytjhon: not found`, `exit code 127` | Typo in a shell command. Jenkins doesn't check what's inside `sh '...'` | Spell it `python` |
+
+**Lessons**
+- **Two kinds of errors:** structure/syntax errors (Jenkinsfile grammar) fail **before** the build starts, while command errors inside `sh` fail **during** the build, when that step runs.
+- **Exit code 127** = command not found.
+- Correct stage layout:
+  ```
+  stage('X')
+   ├── agent { docker { image '...'; reuseNode true } }
+   ├── environment { }   (optional)
+   └── steps { }
+  ```
+- **Pipeline Syntax → Declarative Directive Generator** (left menu of any pipeline job) generates correct blocks.
+- Indent 4 spaces per level so every `}` lines up under the line that opened it.
+- **Indentation doesn't change the structure in Groovy; only braces do.** Second attempt: I moved `steps {` to the left, but the `}` closing `agent` was still *after* `steps`, so `steps` was still inside `agent`. Fix: move that `}` to **before** `steps {`. Check by tracing which block each `}` closes. *(Fixed by Claude at my request, 02/10/2026; also removed a trailing space after `reuseNode true` and an empty line inside `steps`.)*
+- Keep comments up to date when code changes (the header still said "Step 4 – Hello world").
 
 ---
 
