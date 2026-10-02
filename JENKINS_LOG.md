@@ -323,14 +323,25 @@ Laptop (Windows) ── Docker Desktop engine
   - Part 3: `dir('portfolio')` + venv + install + `manage.py test`
 
 **Result**
-- Build number:
-- Tests run / passed:
+- **Part 1 ✅ – build #3 (02/10/2026):** `python --version` → `Python 3.12.15` inside the container. Commit `59be5b3` "test docker as a agent".
+- Tests run / passed: (Part 3)
+
+**Notes: Docker container lifecycle in a build (from build #3 log)**
+| Log line | Meaning |
+|---|---|
+| `docker inspect -f . python:3.12` → `error: no such object` | "Do I have this image locally?" No. **Not a failure**, just a check. |
+| `docker pull python:3.12` | Download it (first time only, then cached) |
+| `Jenkins seems to be running inside container ...` | DooD detected, so it uses `--volumes-from` |
+| `docker run -t -d -u 1000:1000 -w <workspace> --volumes-from <jenkins> -e ... python:3.12 cat` | Start the container in the background, as UID 1000 (jenkins, **not root**), in my workspace, sharing Jenkins' disks. `cat` keeps it alive. |
+| `+ python --version` | My step, run inside the container via `docker exec` |
+| `docker stop` / `docker rm -f --volumes` | Container deleted after the stage, so every build starts fresh |
 
 **Errors faced**
 | Error | Cause | Fix |
 |-------|-------|-----|
 | *(caught in review, 02/10/2026)* `dcocker {`. Would fail before any stage with `Invalid agent type "dcocker"` | Typo in the agent type. Allowed types: `any`, `none`, `label`, `docker`, `dockerfile` | Spell it `docker` |
 | *(caught in review)* `steps { }` written **inside** `agent { }`. Would fail with `Invalid config option "steps"...` | `agent` = *where* to run, `steps` = *what* to run. They are **siblings** inside `stage`, not nested | Close `agent { }` right after `docker { }`, then open `steps { }` |
+| *(caught in review, Part 2)* `SECRET_KEY` defined **twice** in `environment { }` | Typed the example line, then pasted the full list underneath it | Delete the duplicate. Each variable name only once. |
 | *(caught in review)* `sh 'pytjhon --version'`. Would fail at runtime: `pytjhon: not found`, `exit code 127` | Typo in a shell command. Jenkins doesn't check what's inside `sh '...'` | Spell it `python` |
 
 **Lessons**
