@@ -19,8 +19,8 @@ GitHub Actions to Jenkins: what was done, why, the errors hit and how each was f
 | 2 | Install and check the plugins we need | Done (01/10/2026) |
 | 3 | Store credentials (GitHub, Docker Hub) in Jenkins | Done (02/10/2026) – confirm both IDs exist |
 | 4 | First "hello world" Jenkinsfile + Multibranch Pipeline job | Done (02/10/2026) |
-| 5 | Test stage (Django tests inside a Python 3.12 container) | In progress |
-| 6 | Staging stage (build + push `dev-*` image on `dev` branch) | Not started |
+| 5 | Test stage (Django tests inside a Python 3.12 container) | Done (02/10/2026) – 4/4 tests pass |
+| 6 | Staging stage (build + push `dev-*` image on `dev` branch) | In progress |
 | 7 | Production stage (build + push `latest` image on `main`, with manual approval) | Not started |
 | 8 | Automatic triggers (GitHub webhook / polling) | Not started |
 | 9 | Tidy up (post actions, cleanup, decide what to do with GitHub Actions) | Not started |
@@ -325,7 +325,28 @@ Laptop (Windows) ── Docker Desktop engine
 **Result**
 - **Part 1 ✅ – build #3 (02/10/2026):** `python --version` → `Python 3.12.15` inside the container. Commit `59be5b3` "test docker as a agent".
 - **Part 2 ✅: build #5 (02/10/2026):** printed `TEST_DB is sqlite and DEBUG is True`. `docker inspect` returned `.` (image cached), so **no pull** and a much faster build. `[Pipeline] withEnv` = the `environment { }` block being applied.
-- Tests run / passed: (Part 3)
+- **Part 3 ✅: build #6 (02/10/2026), commit `815ad58`:** venv created, all packages installed, **4 tests ran, all OK** (`test_admin_page_loads`, `test_authenticated_admin`, `test_database_works`, `test_homepage_loads`) on in-memory SQLite. `Finished: SUCCESS`.
+- Tests run / passed: **4 / 4**
+- **Step 5 complete: Jenkins now does everything the GitHub `test` job did.**
+
+**Notes from the build #6 log**
+- Jenkins runs `sh` with **tracing** (`+ command` before each line). The long block after `. .venv/bin/activate` is the activate script's own commands. The key line: `PATH=.../.venv/bin:...`. Activating = putting the venv's `bin` first in PATH.
+- `WARNING: The directory '/.cache/pip' ... not writable ... cache has been disabled`: harmless. UID 1000 has no user/home inside `python:3.12`, so `HOME=/` and pip can't write its cache. Result: packages are re-downloaded every build. *Possible improvement later: set `PIP_CACHE_DIR` (or `HOME`) to a folder in the workspace.*
+- `Applying sessions.0001_initial...test_admin_page_loads ... ok` on one line: stdout and stderr mixed in the log. Not an error.
+- If any test fails, `manage.py test` exits non-zero, so Jenkins marks the stage red and the build FAILURE automatically.
+
+**Final Step 5 Jenkinsfile structure**
+```
+pipeline
+ ├── agent any
+ └── stages
+      └── stage('Test')
+           ├── agent { docker { image 'python:3.12'; reuseNode true } }
+           ├── environment { 14 dummy test variables }
+           └── steps
+                ├── sh 'python --version'
+                └── dir('portfolio') { sh ''' venv → pip install → manage.py test ''' }
+```
 
 **Notes: Docker container lifecycle in a build (from build #3 log)**
 | Log line | Meaning |
@@ -371,9 +392,119 @@ Laptop (Windows) ── Docker Desktop engine
 
 ---
 
+### Step 6 – Staging: build + push `dev-*` image on the `dev` branch (02/10/2026)
+
+**Plan (built in parts)**
+- Part 1: add a `Deploy Staging` stage with a `when { branch 'dev' }` condition and just an `echo`. See it get **skipped** on `jenkins-setup`.
+- Part 2: `docker build` with the two staging tags.
+- Part 3: `withCredentials` + `docker login` + `docker push`.
+- Part 4: merge to `dev` so the stage really runs, then check Docker Hub.
+
+**Notes**
+- **`when { }`** = a condition on a stage. If it's false, the stage is **skipped** (grey in Stage View, log line `Stage "..." skipped due to when conditional`). It's the Jenkins version of `if: github.ref == 'refs/heads/dev'`.
+- **`branch 'dev'`** compares against `env.BRANCH_NAME`, which only exists in **Multibranch** jobs.
+- The staging stage has **no `agent` of its own**, so it runs on the top-level `agent any` (the built-in node), which has the **Docker CLI**. That's what we need for `docker build` / `docker push`. The `python:3.12` container from the Test stage has no Docker CLI.
+- Stages run in order. If `Test` fails, the build stops and `Deploy Staging` never runs. That's the Jenkins version of `needs: test`.
+
+**Notes: Part 2 (docker build)**
+- `docker build -t A -t B <context>`: each `-t` adds a **tag** (name:version) to the same image. `<context>` = the folder sent to Docker, which must contain the `Dockerfile` (ours: `portfolio`, same as `context: portfolio` in GitHub Actions).
+- Image name format for Docker Hub: **`<dockerhub-username>/<repo>:<tag>`**. Must be **lowercase**.
+- The Docker Hub username isn't a secret, so it can go in `environment { IMAGE_NAME = '...' }`. Only the **token** must stay in Credentials.
+- `${IMAGE_NAME}` and `${GIT_COMMIT}` inside **single quotes** are expanded by the **shell**. Braces make clear where the variable name ends.
+- DooD and `docker build`: the Docker CLI in the Jenkins container **uploads the context folder** to Docker Desktop, so local paths work fine.
+- **Replay** (build page → *Replay*) re-runs a build with an **edited Jenkinsfile, without committing**. Great for experiments. The edit only lives in that one build.
+
+**Notes: Part 3 (login + push with a real secret)**
+- **`withCredentials([...]) { }`** = a **step** (so it goes inside `steps`) that fetches a credential by **ID**, puts it into env variables **only inside its braces**, and **masks** the values in the log (`****`).
+- **`usernamePassword(credentialsId:, usernameVariable:, passwordVariable:)`** = for a *Username with password* credential. I choose the variable names.
+- **`echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin`**: the token goes in through **stdin**, never on the command line (`-p` would expose it in process lists and Docker would warn).
+- **Single quotes** around the `sh` script, so the **shell** expands `$DOCKER_PASS`. Double quotes would make Groovy paste the secret into the command, and Jenkins warns: *"insecure interpolation of sensitive variables"*.
+- **`docker logout`** at the end: `docker login` saves the token in `/var/jenkins_home/.docker/config.json` (inside the Jenkins container), where it would **stay after the build**. Logging out removes it. *(A failed push would skip the logout, so `post { always { } }` is the robust fix, in Step 9.)*
+- A `docker push` of the second tag uploads nothing new: every layer says `Layer already exists`.
+- ⚠️ **Never test a push to `dev-latest` from a non-dev branch.** The staging VM's cron pulls `dev-latest` within ~5 minutes, so you'd deploy the wrong code to staging.
+
+**What I did**
+- Part 1 written (when + echo). Not pushed yet. Planning to push Parts 1 + 2 together.
+- Part 2 written **correctly on the first try** (02/10/2026): `environment { IMAGE_NAME = 'iamkaushal20/portfolio' }` + `sh 'docker build -t ${IMAGE_NAME}:dev-latest -t ${IMAGE_NAME}:dev-${GIT_COMMIT} portfolio'`.
+- ⚠️ Check: `iamkaushal20` must match the username in `dockerhub-creds`, or the push in Part 3 will fail with `denied: requested access to the resource is denied`.
+- Part 3 written **correctly on the first try** (02/10/2026): `withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', ...)])` around `sh '''` login (`--password-stdin`) → push `dev-latest` → push `dev-${GIT_COMMIT}` → logout `'''`. Single quotes, inside `steps`, braces balanced. Not pushed yet.
+- Found before Part 4: `dev` is **7 commits behind `main`** and has nothing of its own. Merging `jenkins-setup` (based on `main`) into `dev` will also bring those 7 commits (S3 media, AWS job, home page changes, settings.py edits), so **staging will get the same app code as `main`**.
+- **Decision (02/10/2026): Option A.** Temporarily **disable the GitHub Actions workflow** (Actions → CI/CD Pipeline → ⋯ → Disable workflow) so that only Jenkins pushes `dev-latest` during the test. Re-enable or retire it in Step 9.
+
+- **Part 2 ✅ tested with Replay** (build #10, replay of #9, 02/10/2026). Changed `branch 'dev'` → `branch 'jenkins-setup'` **in the Replay editor only**. Both stages green. Image built and tagged `iamkaushal20/portfolio:dev-latest` and `:dev-b30b9ed59caef5b5f2687706aaf2ccf868ac5089`.
+- **Replay re-uses the commit of the replayed build** (here `b30b9ed`). Only the Jenkinsfile text is swapped for what I pasted.
+
+**Notes from the build #10 log**
+- `debconf: unable to initialize frontend: Dialog ... falling back to Noninteractive`: `apt-get` in the Dockerfile has no screen, so it falls back. Harmless.
+- `WARNING: Running pip as the 'root' user`: comes from the **Dockerfile**, not Jenkins. Common in containers.
+
+**`docker images` after build #10 (before the `.venv` fix)**
+| Tag | ID | Disk usage | Content size |
+|---|---|---|---|
+| `dev-b30b9ed…` | `50eae3e672c6` | 950MB | 252MB |
+| `dev-latest` | `50eae3e672c6` | 950MB | 252MB |
+- **Same ID on both rows**, which proves one image with two tags. The ID matches `exporting manifest list sha256:50eae3e672c6…` in the build log.
+- **Content size** = compressed layers (what gets pushed and pulled). **Disk usage** = unpacked size, stored once.
+- **Baseline: 252MB content.** Compare after the `.venv/` fix.
+- `.gitignore` (Git: what gets committed) and `.dockerignore` (Docker: what goes in the build context) are **independent**. The image fix needs `.dockerignore`.
+
+**Q: Why do both tags show the same IMAGE ID?**
+- A **tag is a label pointing to an image**, not a copy. One build, one image, two names. The IMAGE ID is a fingerprint of the content.
+- The second tag uses **almost no disk space** (just metadata), even though `docker images` shows the full size on both rows.
+- On push, the second tag uploads nothing new (`Layer already exists`).
+- On the next build, `dev-latest` **moves** to the new image, while `dev-<commit>` stays on the old one. That's what makes **rollback** possible.
+
+**Errors faced**
+| Error | Cause | Fix |
+|-------|-------|-----|
+| *(caught in review, Part 1)* `steps { }` written **inside** `when { }` | Same pattern as `steps` inside `agent` in Step 5. `when` only holds **conditions**. `steps` is its sibling. | Close `when` right after `branch 'dev'`, then open `steps` |
+| *(caught in review)* Extra `script { docker.build("portfolio:latest") }` directly in the stage | Jumped ahead. `script` is a **step** (must be in `steps`). `latest` is the **production** tag. No `<dockerhub-user>/` prefix. | Removed. Build is done properly in Part 2 with `dev-latest` / `dev-<commit>` tags. |
+| **Found in build #10 log:** `transferring context: 106.32MB`, far too big for a small Django app | The **Test stage creates `portfolio/.venv`** (~100 MB) in the **shared workspace**. `docker build ... portfolio` sends it as context. `.dockerignore` excludes `venv/` but **not `.venv/`**, and `COPY . .` puts it **inside the image**. (Never happened on GitHub Actions: each job had its own fresh VM.) | Add `.venv/` to `portfolio/.dockerignore`. Check: next build's `transferring context:` should be a few MB. *(First attempt saved as `.vnev/`, a typo that would match nothing. Corrected to `.venv/` by Claude at my request, 02/10/2026. `.gitignore` already had `.venv/` on line 5.)* Result: _(fill in after next build)_ |
+| *(caught in review)* One `}` too many at the end of the file | Brace count off after the extra block | After the last stage's `}` there must be exactly **2**: `stages`, then `pipeline` |
+| | *Fixed `when` myself. Claude removed the `script` block and the extra `}` at my request (02/10/2026).* | |
+
+**Lessons**
+- `when`, `agent`, `environment`, `steps`, `post` are all **siblings** directly inside a stage. None of them goes inside another.
+- **Habit:** type `{` and its `}` together, then fill in the middle. That stops one block from swallowing the next.
+- Pushing the wrong tag is dangerous: `latest` from `dev` would be pulled by the **production** VM's cron.
+- **In Jenkins, all stages share one workspace** (unlike GitHub Actions jobs, which each get a new VM). Files one stage creates (`.venv`, build output) are seen by later stages, including `docker build`.
+- **Read `transferring context: NN MB`** in every `docker build` log. A big number means unwanted files are getting into the build. Fix them with `.dockerignore`.
+- `venv/` and `.venv/` are **different names**. `.dockerignore` matches exactly.
+
+---
+
+## Review questions & answers (02/10/2026)
+
+**Q1 (Step 4): `"${env.BRANCH_NAME}"` vs `'''$NODE_NAME'''`. Who fills in the value?**
+- Double quotes: **Groovy/Jenkins** fills it in *before* the step runs, so the shell receives finished text.
+- Single quotes: Groovy passes the text unchanged, and the **shell** expands `$NODE_NAME` from its environment.
+- **Security rule:** secrets in `sh` → **always single quotes**. Double quotes paste the secret into the command text (Jenkins warns: *"A secret was passed to sh using Groovy String interpolation, which is insecure"*).
+
+**Q2 (Step 5): Why can't `. .venv/bin/activate` and `pip install` be separate `sh` steps?**
+- Every `sh` step is a **new shell process**. Activation only changes `PATH` in that shell, and the change is lost when the step ends.
+- The next `sh` would use the **system pip** as UID 1000 (not root), so the install fails. Tests would then hit `ModuleNotFoundError: No module named 'django'`.
+- Rule: shell state (`cd`, `export`, `activate`) only lasts within one `sh`. Use `dir()` and `environment {}` / `withEnv` for things that must carry across steps.
+
+**Q3 (Step 3 → 6): Where does the real Docker Hub token go?**
+- In the **Jenkins Credentials store** (ID `dockerhub-creds`), never in the Jenkinsfile or repo.
+- The Jenkinsfile refers to it **by ID only**:
+  - `withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) { ... }`, or
+  - `environment { DOCKERHUB = credentials('dockerhub-creds') }` → creates `DOCKERHUB_USR` and `DOCKERHUB_PSW`.
+- Values exist only inside that block and are **masked** in logs. Log in with `--password-stdin` so the token stays off the command line.
+
+**Q4 (Step 6 Part 3): What if the username in `IMAGE_NAME` doesn't match the `dockerhub-creds` username?**
+- My answer: the push fails. ✅
+- Detail: `docker build` ✅ (any local name is allowed), `docker login` ✅ (the credentials are valid), **`docker push` ❌** `denied: requested access to the resource is denied`. That's **authorisation** (no permission to that namespace), not authentication. Same idea as the git `403` in Step 4.
+- Jenkins runs `sh` with **`-e`** (stop at the first failure), so **`docker logout` is skipped** and the token stays in `/var/jenkins_home/.docker/config.json`. Fix in Step 9: `post { always { sh 'docker logout' } }`.
+
+**Still open: Step 5 Part 1:** what happens if `reuseNode true` is removed? *(Answer in Step 6 or 9.)*
+
+---
+
 ## Error index (all steps)
 
 | Step | Error message (short) | Root cause | Fix |
 |------|----------------------|-----------|-----|
 | 4 | `git push` 403 – permission denied to `Kaushal-rentalbux` | Saved work GitHub login used for personal repo | Added `Kaushal-rentalbux` as a repo collaborator and accepted the invite |
+| 6 | `transferring context: 106.32MB` (build #10) | Test stage's `.venv` in shared workspace, not in `.dockerignore`, so it was copied into the image | Add `.venv/` to `portfolio/.dockerignore` |
 | 5 | `Duplicate environment variable name: "SECRET_KEY"` (build #4) | Same variable twice in `environment { }`, pushed before fixing | Remove the duplicate, commit, push |

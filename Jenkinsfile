@@ -1,5 +1,5 @@
-// Step 5, Part 3 – run the Django tests inside a python:3.12 container.
-// Same job as "test" in .github/workflows/deploy.yml.
+// Step 6, Part 1 – Test stage + a Deploy staging stage that only runs on the dev branch.
+// Mirrors "test" and "deploy-staging" in .github/workflows/deploy.yml.
 
 pipeline {
     // Default agent: any free node (for us, the built-in node). Code is checked out here.
@@ -40,6 +40,25 @@ pipeline {
                         python manage.py test --verbosity=2
                     '''
                 }
+            }
+        }
+        stage('Deploy staging') {
+            when {
+                branch 'dev'
+            }
+            environment {
+                IMAGE_NAME = 'iamkaushal20/portfolio'
+            }
+            steps {
+                sh 'docker build -t ${IMAGE_NAME}:dev-latest -t ${IMAGE_NAME}:dev-${GIT_COMMIT} portfolio'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push ${IMAGE_NAME}:dev-latest
+                        docker push ${IMAGE_NAME}:dev-${GIT_COMMIT}
+                        docker logout
+                    '''
+                }       
             }
         }
     }
