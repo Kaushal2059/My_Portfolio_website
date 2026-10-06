@@ -1,5 +1,23 @@
-// Step 6, Part 1 – Test stage + a Deploy staging stage that only runs on the dev branch.
-// Mirrors "test" and "deploy-staging" in .github/workflows/deploy.yml.
+// CI/CD pipeline for the portfolio site (replaces test / deploy-staging / deploy-production
+// in .github/workflows/deploy.yml):
+//   every branch -> run the Django tests in a python:3.12 container
+//   dev          -> build + push iamkaushal20/portfolio:dev-latest and :dev-<commit>  (staging)
+//   main         -> ask for approval, then push :latest and :<commit>                  (production)
+
+// Build the image once with two tags and push both to Docker Hub.
+// Used by both deploy stages, so a fix here applies to staging and production alike.
+void buildAndPush(String mainTag, String commitTag) {
+    // Tags aren't secrets, so double quotes (Groovy fills in the values) are fine here.
+    sh "docker build -t ${env.IMAGE_NAME}:${mainTag} -t ${env.IMAGE_NAME}:${commitTag} portfolio"
+
+    withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+        // Secret: single quotes, so the shell (not Groovy) reads $DOCKER_PASS.
+        sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
+        sh "docker push ${env.IMAGE_NAME}:${mainTag}"
+        sh "docker push ${env.IMAGE_NAME}:${commitTag}"
+    }
+    // No logout here: post { always } below logs out even if a push fails.
+}
 
 pipeline {
     // Default agent: any free node (for us, the built-in node). Code is checked out here.
@@ -18,6 +36,7 @@ pipeline {
                     reuseNode true
                 }
             }
+            // Dummy values for the tests only – not secrets.
             environment {
                 SECRET_KEY     = 'test-secret-key-for-ci-not-real'
                 DEBUG          = 'True'
@@ -33,6 +52,9 @@ pipeline {
                 FACEBOOK_URL   = 'https://facebook.com'
                 INSTAGRAM_URL  = 'https://instagram.com'
                 GITHUB_URL     = 'https://github.com'
+                // The container user has no home folder, so give pip a writable cache
+                // in the workspace (outside portfolio/, so it never enters the Docker image).
+                PIP_CACHE_DIR  = "${env.WORKSPACE}/.pip-cache"
             }
             steps {
                 sh 'python --version'
@@ -47,43 +69,41 @@ pipeline {
                 }
             }
         }
+
         stage('Deploy staging') {
             when {
                 branch 'dev'
             }
             steps {
-                sh 'docker build -t ${IMAGE_NAME}:dev-latest -t ${IMAGE_NAME}:dev-${GIT_COMMIT} portfolio'
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${IMAGE_NAME}:dev-latest
-                        docker push ${IMAGE_NAME}:dev-${GIT_COMMIT}
-                        docker logout
-                    '''
-                }       
+                buildAndPush('dev-latest', "dev-${env.GIT_COMMIT}")
             }
         }
+
         stage('Deploy production') {
             when {
-                beforeInput true
+                beforeInput true    // check the branch first, so only main is asked
                 branch 'main'
+            }
+            options {
+                // Covers the approval wait + build + push. If nobody answers in time,
+                // the build is aborted instead of holding an executor forever.
+                timeout(time: 60, unit: 'MINUTES')
             }
             input {
                 message 'Deploy this build to PRODUCTION?'
                 ok 'Deploy'
             }
-
             steps {
-                sh 'docker build -t ${IMAGE_NAME}:latest -t ${IMAGE_NAME}:${GIT_COMMIT} portfolio'
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${IMAGE_NAME}:latest
-                        docker push ${IMAGE_NAME}:${GIT_COMMIT}
-                        docker logout
-                    '''
-                }       
+                buildAndPush('latest', env.GIT_COMMIT)
             }
+        }
+    }
+
+    post {
+        always {
+            // Remove the saved Docker Hub login whatever happened (success, failure, abort).
+            // '|| true' so cleanup can never fail the build.
+            sh 'docker logout || true'
         }
     }
 }

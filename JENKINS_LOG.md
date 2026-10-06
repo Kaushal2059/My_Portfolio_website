@@ -22,8 +22,8 @@ GitHub Actions to Jenkins: what was done, why, the errors hit and how each was f
 | 5 | Test stage (Django tests inside a Python 3.12 container) | Done (02/10/2026) – 4/4 tests pass |
 | 6 | Staging stage (build + push `dev-*` image on `dev` branch) | Done (02/10/2026): first real push from dev #1. *Still to check: Docker Hub tags page + staging VM pull.* |
 | 7 | Production stage (build + push `latest` image on `main`, with manual approval) | Done (02/10/2026): main #1 approved and pushed `latest` |
-| 8 | Automatic triggers (GitHub webhook / polling) | In progress: polling |
-| 9 | Tidy up (post actions, cleanup, decide what to do with GitHub Actions) | Not started |
+| 8 | Automatic triggers (GitHub webhook / polling) | Done (02/10/2026): polling every 5 min, auto-build confirmed |
+| 9 | Tidy up (post actions, cleanup, decide what to do with GitHub Actions) | Code done (02/10/2026), **testing pending** (see Step 9 checklist). GitHub Actions left disabled; log stays public. |
 
 ---
 
@@ -601,12 +601,85 @@ pipeline
 - End-to-end delay = scan interval + build time + the VM's cron interval (~5 min).
 
 **What I did**
--
+- portfolio-site → Configure → **Scan Multibranch Pipeline Triggers** → ticked *Periodically if not otherwise run* → **5 minutes** → Save.
+- Updated the Jenkinsfile header comment on `jenkins-setup`, pushed, and **didn't touch Jenkins**.
 
-**Result**
-- Interval chosen:
-- Test push commit:
-- Build started automatically? Cause shown:
+**Result ✅ (02/10/2026)**
+- Interval chosen: 5 minutes
+- Test push commit: `88bf4bf` on `jenkins-setup`
+- Build started automatically? **Yes.** Scan log at 12:50:07 UTC: **`Started by timer`** → `Changes detected: jenkins-setup (a3fef65… → 88bf4bf…)` → `Scheduled build for branch: jenkins-setup`.
+- `main` and `dev`: `No changes detected (still at a3fef65…)`, so no build, which is correct.
+- Before this push, **all three branches were at the same commit** `a3fef65` (identical after the release).
+
+**Notes from the scan log**
+- **"Started by timer"** = the periodic trigger. "Started by user" = the button. "Branch indexing" (on a build) = the build was scheduled by a scan.
+- A scan compares **last built commit vs latest commit on GitHub** per branch. Only branches that changed get built.
+- A scan only **schedules** builds. Check the build itself separately.
+
+**Errors faced**
+| Error | Cause | Fix |
+|-------|-------|-----|
+| | | |
+
+---
+
+### Step 9 – Tidy up (02/10/2026)
+
+**Items**
+1. `post { always { } }`: make `docker logout` run even when a push fails ← *current*
+2. Timeout on the production approval prompt
+3. Remove duplicated staging/production steps
+4. Fix the pip cache warning (optional)
+5. GitHub Actions decision (currently disabled)
+6. `JENKINS_LOG.md`: public or private?
+
+**Notes: item 1 (`post`)**
+- **`post { }`** = steps that run **after** the stages, depending on how the build ended. It can go at **pipeline level** (after `stages { }`) or inside a stage.
+- Conditions:
+
+| Condition | Runs when |
+|---|---|
+| `always` | every time: success, failure, or aborted |
+| `success` | the build passed |
+| `failure` | the build failed |
+| `aborted` | someone clicked **Abort** (e.g. at the approval prompt) |
+| `unstable` | e.g. tests reported failures without crashing |
+| `changed` / `fixed` | the result differs from the last build / the last build failed and this one passed |
+| `cleanup` | after all other `post` conditions, always (good for deleting files) |
+
+- Problem it solves: `sh` runs with `-e`, so a failed `docker push` stops the script **before** `docker logout`, and the token stays in `/var/jenkins_home/.docker/config.json`.
+- `docker logout || true`: `|| true` = "if logout fails, still count it as success", so cleanup can never turn a green build red.
+- Logout in **one** pipeline-level `post` instead of inside both deploy stages = one place to maintain (Q7's drift lesson).
+- Shows in Stage View as an extra column, **"Declarative: Post Actions"**.
+
+**What I did**
+- Asked Claude to do items 1–4 in the Jenkinsfile (02/10/2026). Items 5 and 6 are my decisions.
+
+**Changes made (items 1–4)**
+| # | Change | Why |
+|---|---|---|
+| 1 | Removed `docker logout` from both stages. Added pipeline-level `post { always { sh 'docker logout \|\| true' } }` | Logout now runs even if a push fails or the build is aborted. One place instead of two. |
+| 2 | `options { timeout(time: 60, unit: 'MINUTES') }` in **Deploy production** | A forgotten approval prompt **aborts after 60 min** instead of holding an executor forever. Covers the wait + build + push. |
+| 3 | New Groovy function **`buildAndPush(mainTag, commitTag)`** above `pipeline { }`. Staging calls `buildAndPush('dev-latest', "dev-${env.GIT_COMMIT}")`, production calls `buildAndPush('latest', env.GIT_COMMIT)` | Build/login/push written **once**. Only the tags differ, which removes the drift risk from Q7. |
+| 4 | `PIP_CACHE_DIR = "${env.WORKSPACE}/.pip-cache"` in the Test stage's `environment` | Fixes the `/.cache/pip ... not writable` warning (the container user has no home). Cache sits at the workspace root, **outside `portfolio/`**, so it never enters the Docker image. |
+| – | Rewrote the header comment to describe the whole pipeline | It still said "Step 6, Part 1" |
+
+**Notes on the new code**
+- **A function (`void name(params) { }`) defined above `pipeline { }`** can be called from any stage's `steps`. It's plain Groovy, and declarative allows it.
+- Inside the function: `sh "..."` (**double quotes**) for the tags, because Groovy fills in `${mainTag}` and these aren't secrets. `sh '...'` (**single quotes**) for the login, because the secret must be expanded by the shell (Q1 rule).
+- Each `sh` is now a separate step. The login state survives between them because it's saved in `config.json` on disk, not in the shell.
+- `env.IMAGE_NAME` / `env.GIT_COMMIT` = Groovy's way to read environment variables (the shell uses `$IMAGE_NAME`).
+- `options { }` = a stage **section** for stage settings (timeout, retry, etc.).
+- How to test: on `jenkins-setup`, only Test + Post Actions run. The function is only really exercised on **`dev`** (staging) and **`main`** (production).
+
+**Decisions (02/10/2026)**
+- **Item 5, GitHub Actions: leave it disabled.** `.github/workflows/deploy.yml` stays in the repo but doesn't run. Revisit when doing the AWS part (choices: delete it, keep only `deploy-aws`, or move AWS into Jenkins). Re-enable: GitHub → Actions → CI/CD Pipeline → Enable workflow (or `gh workflow enable "CI/CD Pipeline"`).
+- **Item 6, `JENKINS_LOG.md`: keep it public.** It contains no secrets (no tokens or passwords), only usernames and setup details. **Rule going forward: never paste a token, password or API key into this log.**
+
+**Still to test (items 1–4)**
+- [ ] `jenkins-setup`: Post Actions column appears, no `/.cache/pip` warning, SUCCESS
+- [ ] `dev`: `buildAndPush` pushes `dev-latest` + `dev-<commit>`, then Post Actions shows `Removing login credentials`
+- [ ] `main`: prompt → Deploy → `latest` + `<commit>` pushed → logout in Post Actions
 
 **Errors faced**
 | Error | Cause | Fix |
@@ -639,7 +712,30 @@ pipeline
 - Detail: `docker build` ✅ (any local name is allowed), `docker login` ✅ (the credentials are valid), **`docker push` ❌** `denied: requested access to the resource is denied`. That's **authorisation** (no permission to that namespace), not authentication. Same idea as the git `403` in Step 4.
 - Jenkins runs `sh` with **`-e`** (stop at the first failure), so **`docker logout` is skipped** and the token stays in `/var/jenkins_home/.docker/config.json`. Fix in Step 9: `post { always { sh 'docker logout' } }`.
 
-**Still open: Step 5 Part 1:** what happens if `reuseNode true` is removed? *(Answer in Step 6 or 9.)*
+**Q5 (Step 8): The laptop sleeps for an hour right after I push. What happens?**
+- The push is **safe on GitHub**. While asleep, Jenkins runs **no scans** and nothing builds.
+- On wake, the next (overdue) scan compares **last built commit vs latest on GitHub**, sees the difference, and builds. **Late, not lost.**
+- Several pushes while asleep → **only the latest commit is built**. The ones in between aren't tested individually.
+- Polling needs Jenkins **on**, which is one reason real teams run Jenkins on an always-on server.
+
+**Q6 (Step 7): Why an approval gate for production but not staging?**
+- Staging affects only me, a bad deploy is cheap, and **fast feedback** matters. Production affects **real visitors**, a bad deploy is expensive, and **safety** matters.
+- Flow: check on staging, *then* click Deploy.
+- Terms: **continuous delivery** = always releasable, a human presses the button (`main`). **Continuous deployment** = every passing change goes live automatically (`dev`).
+
+**Q7 (Step 7): Why is near-identical staging/production `steps` risky?**
+- **Drift:** a fix goes into one copy and is forgotten in the other (e.g. the Step 9 `docker logout` fix must go in **both**).
+- Copy-paste bugs already seen: `dev-latest` in production, the missing `$`.
+- Later nobody knows whether the differences are intentional.
+- Fix: write the steps **once** and pass in only what differs (the tags), via a Groovy function or one stage that works out its tags from the branch. *(Step 9, item 3.)*
+
+**Q8 (Step 5): What happens if `reuseNode true` is removed?**
+- The stage's docker agent becomes a **separate node allocation**: a **second executor** and a **new workspace** (`…_jenkins-setup@2`), with a **second checkout** (declarative does it automatically). Tests would still pass, just slower.
+- ⚠️ **Deadlock risk:** the top-level `agent any` holds its executor the whole time. With only **1 executor**, the stage waits forever on *"Waiting for next available executor"*.
+- Files from the Test stage land in `@2`, invisible to later stages (that would actually have hidden the `.venv`-in-image bug).
+- `reuseNode true` = **same node, same executor, same workspace, one checkout.**
+
+**Decided:** `JENKINS_LOG.md` stays **public** (no secrets in it). See Step 9.
 
 ---
 
