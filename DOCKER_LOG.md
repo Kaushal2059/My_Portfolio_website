@@ -21,8 +21,8 @@ why, the errors hit and how each was fixed.
 | 3 | Write the **runtime** stage (clean slim image, copy only the finished virtual env + app) | Done (06/10/2026): code reviewed |
 | 4 | Build locally, compare size with Step 0, run the container and check it starts | Done (06/10/2026): 86.4 MB compressed, full site works. 2 errors fixed (CRLF, nginx DNS) |
 | 5 | Run as a **non-root user** (and fix any file-permission problems) | Done (06/10/2026): runs as `appuser` (UID 1000), code read-only, site works |
-| 6 | Build through Jenkins and confirm the pipeline still works | **Current** |
-| 7 | Wrap-up: review questions, final notes | |
+| 6 | Build through Jenkins and confirm the pipeline still works | Done (06/10/2026): `dev` build SUCCESS, `dev-latest` pushed. Fixed Jenkins socket access after the switch to WSL Docker (`group_add` 0 → 986) |
+| 7 | Wrap-up: review questions, final notes | **Current**: Dockerfile commented (06/10/2026) |
 
 ---
 
@@ -547,7 +547,157 @@ git switch jenkins-setup
 ```
 
 **Results**
-- (to be filled in)
+
+**`dev` build (commit `2109dba`): FAILURE ❌, before the Dockerfile was even used**
+```
+[Pipeline] { (Test)
++ docker inspect -f . python:3.12
+permission denied while trying to connect to the docker API at unix:///var/run/docker.sock
++ docker pull python:3.12
+permission denied while trying to connect to the docker API at unix:///var/run/docker.sock
+Stage "Deploy staging" skipped due to earlier failure(s)
+...
+Finished: FAILURE
+```
+- Git, the commit, the merge and the polling trigger all worked: Jenkins checked out `2109dba` with my commit message ✅
+- It failed in the **Test** stage, at the very first Docker command (checking for the `python:3.12` image). **The Dockerfile was never reached.** Not caused by the multi-stage change.
+- **Meaning:** the Jenkins container's user (`jenkins`, UID 1000) is **not allowed to use the Docker socket** `/var/run/docker.sock`, the "phone line" from the Jenkins container to Docker Desktop's engine. It worked on 02/10/2026, so something changed since then.
+- How socket access was originally granted was **not recorded** in `JENKINS_LOG.md`. Diagnosing first.
+- **Root cause (likely): I switched from Docker Desktop to Docker Engine inside WSL Ubuntu.**
+  - Docker Desktop's socket setup let the container's `jenkins` user (UID 1000) in.
+  - The WSL engine creates the socket the standard Linux way: owner `root`, group `docker`, mode `660` = only root and members of the `docker` group.
+  - The `jenkins` user in the container is **not** in that group → `permission denied`.
+  - Linux checks **numbers (GIDs)**, not names. The Jenkins container needs the **GID** of WSL's `docker` group (e.g. via `--group-add <GID>` when the container is created).
+  - (This also explains why Claude's Windows-side `docker ps` couldn't find Docker Desktop's engine.)
+- Diagnostics requested: `getent group docker`, `ls -ln /var/run/docker.sock`, `docker exec <jenkins> id`, `docker inspect` (User/GroupAdd/Binds/Ports), plus how Jenkins was started (`docker run` or compose).
+
+**Diagnostics: results so far**
+| Command (in WSL) | Output | Meaning |
+|---|---|---|
+| `getent group docker` | `docker:x:986:kaushal20` | WSL `docker` group = **GID 986**; my user is a member |
+| `ls -ln /var/run/docker.sock` | `srw-rw---- 1 0 986 ... Oct 6 08:21` | `s` = socket. Owner UID **0** (root), group **986**, `rw-rw----` = only root and group 986 can use it. Created 08:21 today (engine start) |
+| `docker ps` | `jenkins  my-jenkins  Up 4 hours` | Container **name = `jenkins`**, **image = `my-jenkins`** (a custom image), running on the WSL engine |
+
+- **Lesson: `<name>` in instructions is a placeholder.** Replace it **including the `< >`**. In bash, `<` = read from a file and `>` = write to a file, which is why `docker exec <jenkins> id` gave `jenkins: No such file or directory` and `... <jenkins>` gave `syntax error near unexpected token 'newline'`.
+- **Container name ≠ image name.** `docker exec`/`inspect` need the **name** (`jenkins`), not the image (`my-jenkins`) → `No such container: my-jenkins`.
+
+| Command | Output | Meaning |
+|---|---|---|
+| `docker exec jenkins id` | `uid=1000(jenkins) gid=1000(jenkins) groups=1000(jenkins),0(root)` | Jenkins user is in groups **1000 and 0**, **not 986** |
+| `docker inspect ... jenkins` | `User=jenkins GroupAdd=[0] Binds=[jenkins_home:/var/jenkins_home:rw /var/run/docker.sock:/var/run/docker.sock:rw] Ports=8080→8080` | Created with **`--group-add 0`**; data in the **named volume `jenkins_home`**; socket mounted; port 8080 |
+
+**✅ Root cause confirmed**
+- With **Docker Desktop**, the socket's group was (inferred) **0**, and Jenkins was given `--group-add 0`, so it worked.
+- With the **WSL engine**, the socket's group is **986**. Jenkins is in 1000 and 0 only → `permission denied`.
+
+**Fix options**
+| Option | Pros | Cons |
+|---|---|---|
+| **Re-create the container with `--group-add 986`** ← **chosen (06/10/2026)** | Permanent, minimal access (only Jenkins gets it) | Container must be re-created with exactly the same settings |
+| `sudo chmod 666 /var/run/docker.sock` | One command | **Security hole** (anyone can control Docker = root); lost on every engine restart |
+
+**Condition from me: the `jenkins_home` volume must be preserved.**
+- A **named volume** exists separately from containers. Stop, rename and `rm` of a container **do not delete it**. Only `docker volume rm jenkins_home` (or `compose down -v`) would.
+- Plan: **back up** the volume to a file → stop → **rename** the old container to `jenkins-old` (rollback, not deleted) → create a new `jenkins` with the same settings + `--group-add 986`, using the **same volume**.
+- ⚠️ `986` is the GID of **this** WSL install's `docker` group. If Docker is reinstalled, check `getent group docker` again.
+- Still to collect: restart policy, network, env vars (`-e`), volume list.
+
+**Remaining settings collected**
+| Command | Output | Meaning |
+|---|---|---|
+| Restart / Network | `Restart=on-failure Network=jenkins_default` | Restarts only on a crash. Network name `<project>_default` = **compose naming**, so Jenkins was probably started by a **compose project called `jenkins`** |
+| Env vars | `JENKINS_HOME`, `JAVA_HOME`, `JENKINS_VERSION=2.580.1`, `JENKINS_SLAVE_AGENT_PORT=50000`, etc. | All defaults from the Jenkins image. **No custom `-e`, no secrets** |
+| `docker volume ls` | `jenkins_home` present | Named volume exists ✅ |
+
+- **If it's compose:** the fix = add `group_add: ["986"]` to the compose file and let compose re-create the container (same volume). Better than a hand-typed `docker run`, which would drift from the compose file.
+- Confirming via compose labels: `com.docker.compose.project`, `...project.working_dir`, `...project.config_files`.
+
+**✅ Confirmed: Jenkins is managed by compose**, file `Desktop/jenkins/docker-compose.yml` (builds image `my-jenkins`, container `jenkins`, `restart: on-failure`, port 8080, socket mount).
+- The file had:
+  ```yaml
+  group_add:
+    - "0"        # written for Docker Desktop's socket (group 0)
+  ```
+- And `volumes: jenkins_home: name: jenkins_home`, a **fixed volume name**, so compose re-uses the **same** volume on re-create. Data safe.
+- **Fix = change `"0"` → `"986"`**, then `docker compose up -d` in `Desktop/jenkins`.
+- **Plan change:** no `jenkins-old` rename. Compose tracks containers by **labels**, not names, so a renamed copy would confuse it. Backup = a `.tgz` of the volume; rollback = set `"0"` again and `up -d`.
+
+**Fix commands (typed by me)**
+```bash
+cd /mnt/c/Users/KaushalRupakhetiRent/Desktop/jenkins
+docker compose stop                     # stop only, removes nothing
+docker run --rm -v jenkins_home:/data:ro -v "$HOME":/backup alpine \
+  tar czf /backup/jenkins_home_backup_2026-10-06.tgz -C /data .
+ls -lh ~/jenkins_home_backup_2026-10-06.tgz
+# then edit docker-compose.yml: group_add "0" -> "986"
+```
+- `:ro` = mount the volume read-only, so the backup can't change it.
+- `tar czf` = create a gzip-compressed archive. `-C /data .` = everything inside `/data`.
+- Restore, if ever needed: `docker run --rm -v jenkins_home:/data -v "$HOME":/backup alpine tar xzf /backup/jenkins_home_backup_2026-10-06.tgz -C /data`
+
+**Done (06/10/2026)**
+- Backup: `/home/kaushal20/jenkins_home_backup_2026-10-06.tgz`, **581 MB** ✅ (owned by `root` because `alpine` ran as root, so deleting it needs `sudo rm`).
+- Compose edited (reviewed: correct):
+  ```yaml
+  # Add the 'jenkins' user to the group that owns /var/run/docker.sock.
+  # Docker Engine in WSL: group 'docker' = GID 986 (check: getent group docker).
+  # (Was "0" when using Docker Desktop.)
+  group_add:
+    - "986"
+  ```
+
+**Next: re-create and check**
+```bash
+docker compose up -d                      # in Desktop/jenkins; NO --build
+docker exec jenkins id                    # expect groups=1000(jenkins),986
+docker exec jenkins docker ps             # Docker CLI inside Jenkins can reach the engine
+```
+- Why **no `--build`**: the image `my-jenkins` already exists. `--build` would rebuild it from the Dockerfile and could pull a **newer Jenkins version**, which is a second change at the same time. One change at a time.
+
+**Results ✅ socket access fixed**
+| Check | Output |
+|---|---|
+| `docker compose up -d` | `Container jenkins Started`. The new ID `d987e6e73707` (created 11 s earlier) shows it **was** re-created, although compose only said "Started" |
+| `docker exec jenkins id` | `groups=1000(jenkins),986`, so the jenkins user is now in the socket's group (no name shown, because the group has no name inside the container; only the number matters) |
+| `docker exec jenkins docker ps` | Lists all containers, so **the Docker CLI inside Jenkins reaches the WSL engine** (was `permission denied`) |
+- Still to check: Jenkins UI data intact (login, `portfolio-site` job + history), then re-run the `dev` build.
+
+**`dev` build re-run (Build Now, commit `2109dba`): `Finished: SUCCESS` ✅**
+| Look for | Seen in console | ✅ |
+|---|---|---|
+| Jenkins data survived | `Started by user kaushal Rupakheti`, `using credential github-creds`, `dockerhub-creds` login worked, same workspace | ✅ volume preserved |
+| Socket fix in a real pipeline | `docker inspect` / `docker pull python:3.12` worked (no `permission denied`) | ✅ |
+| `error: no such object: python:3.12` | **Not an error**: the WSL engine has an **empty image cache**, so it pulled the image once. Next builds will skip the pull | ✅ |
+| Build context | `transferring context: 157.14kB` | ✅ `.dockerignore` still working |
+| Both stages built | `[builder 1/6]`…`[builder 6/6]` and `[stage-1 2/6]`…`[stage-1 6/6]` | ✅ |
+| Multi-stage copy | `#13 [stage-1 4/6] COPY --from=builder /opt/venv /opt/venv` | ✅ |
+| Non-root | `[stage-1 2/6] RUN useradd --create-home --uid 1000 appuser`, `[stage-1 6/6] ... chown appuser:appuser` | ✅ |
+| Pushes | `dev-latest: digest: sha256:84dedd…` and `dev-2109dba…: digest: sha256:84dedd…` (**same digest** = same image, two tags) | ✅ |
+| Production skipped | `Stage "Deploy production" skipped due to when conditional` | ✅ correct on `dev` |
+| Logout | Post Actions → `Removing login credentials` | ✅ |
+
+**Things worth noticing in the log**
+- **Stages build in parallel.** `#7 [stage-1 2/6] RUN useradd` finished **while** `#6 [builder 2/6] apt-get install` was still running. BuildKit sees that the runtime stage doesn't need the builder **until** `COPY --from=builder`, so it starts the independent steps early. Another multi-stage benefit: faster builds.
+- **`stage-1`** = BuildKit's automatic name for my **unnamed** second stage (stages are numbered from 0: `builder` = stage 0).
+- **Nothing was `CACHED`**, because the WSL engine is new and has no build cache yet. The next `dev` build should show `CACHED` for most builder steps.
+- **Second push: `Layer already exists`** everywhere. Docker Hub already had every layer from the first tag, so the second tag cost almost nothing.
+- **`debconf: unable to initialize frontend: Dialog ...`** = apt has no keyboard/screen inside a build, so it falls back to non-interactive mode. **Harmless warnings.** (Optional tidy-up: `ENV DEBIAN_FRONTEND=noninteractive` in the builder, or prefix the apt command with it.)
+- `Timeout set to expire in 1 hr 0 min` appears even though production was skipped. The `options { timeout }` wrapper starts before the `when` check decides to skip. Harmless.
+
+**Still open (outside Jenkins)**
+- ⚠️ Staging VM: its cron will now pull the new non-root `dev-latest`. If the site shows 502 / `web` crash-loops with permission denied → recreate the volumes **on the VM** (test data only).
+- `main` (production) not run yet. When merged, the approval prompt will appear first.
+
+---
+
+### Step 7 – Wrap-up (06/10/2026)
+
+**Comments added to `portfolio/Dockerfile`** (by Claude at my request)
+- Header block: what each stage does, why only the last stage ships, and the "same base image in both stages" rule.
+- One short comment per section explaining **why** (not just what): apt minimal install, venv + `ENV PATH`, layer-cache order, `--no-cache-dir`, `ENV` not carrying across stages, fixed UID, the writable folders + volume ownership, `USER`, and the LF line-ending requirement for `entrypoint.sh`.
+- **No instruction changed.** Checked by comparing all non-comment lines with the committed version: `INSTRUCTIONS IDENTICAL`. So the image builds exactly the same (only the Dockerfile layer metadata changes).
+- Not committed yet (I run git myself).
+- Side note: `Post Actions` still ran `docker logout` → `Removing login credentials` even after the failure. **Step 9 `post { always }` is confirmed working** ✅ (logout only touches a local file, so it doesn't need the socket).
 
 ---
 
@@ -557,3 +707,6 @@ git switch jenkins-setup
 |------|----------------------|-----------|-----|
 | 4b | `entrypoint.sh: 3: set: Illegal option -`, `: not found`, nginx `502 Bad Gateway` | `core.autocrlf=true` checked out `entrypoint.sh` with CRLF on Windows; `COPY . .` put it in the image; `sh` reads `\r` as part of commands | Converted `entrypoint.sh` to LF in VS Code, rebuilt, `docker compose up -d --force-recreate web`. ⚠️ Local fix only; can return on a fresh clone (permanent fix = `.gitattributes` `*.sh text eol=lf`) |
 | 4b | Still `502`; nginx log `upstream: "http://127.0.53.53:8000/"`, `111: Connection refused` | nginx resolves `web` only at startup; `web` was down then, so internet DNS answered `127.0.53.53` (TLD-clash warning address) | `docker compose restart nginx`. Page + CSS load ✅ |
+| 6 | Jenkins `dev` build: `permission denied while trying to connect to the docker API at unix:///var/run/docker.sock` | Switched Docker Desktop → Docker Engine in WSL. Socket is now group **986**; Jenkins compose had `group_add: "0"` (Docker Desktop's socket group) | Backed up `jenkins_home` (581 MB .tgz); `Desktop/jenkins/docker-compose.yml` `group_add` → `"986"`; `docker compose up -d` (no `--build`). Re-run: SUCCESS ✅ |
+| 6 | `<jenkins>`: `No such file or directory` / `syntax error near unexpected token 'newline'` | Typed the placeholder `<...>` literally; `<` `>` are bash redirections | Use the real name without `< >` |
+| 6 | `No such container: my-jenkins` | Used the **image** name; `docker exec` needs the **container** name | `docker exec jenkins ...` |

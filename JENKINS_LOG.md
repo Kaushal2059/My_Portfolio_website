@@ -678,7 +678,7 @@ pipeline
 
 **Still to test (items 1–4)**
 - [ ] `jenkins-setup`: Post Actions column appears, no `/.cache/pip` warning, SUCCESS
-- [ ] `dev`: `buildAndPush` pushes `dev-latest` + `dev-<commit>`, then Post Actions shows `Removing login credentials`
+- [x] `dev`: `buildAndPush` pushes `dev-latest` + `dev-<commit>`, then Post Actions shows `Removing login credentials`. **Done 06/10/2026** (commit `2109dba`, see `DOCKER_LOG.md` Step 6). The first attempt failed with `docker.sock` permission denied after switching from Docker Desktop to Docker Engine in WSL; fixed by changing `group_add` from `"0"` to `"986"` in `Desktop/jenkins/docker-compose.yml`.
 - [ ] `main`: prompt → Deploy → `latest` + `<commit>` pushed → logout in Post Actions
 
 **Errors faced**
@@ -746,3 +746,4 @@ pipeline
 | 4 | `git push` 403 – permission denied to `Kaushal-rentalbux` | Saved work GitHub login used for personal repo | Added `Kaushal-rentalbux` as a repo collaborator and accepted the invite |
 | 6 | `transferring context: 106.32MB` (build #10) | Test stage's `.venv` in shared workspace, not in `.dockerignore`, so it was copied into the image | Add `.venv/` to `portfolio/.dockerignore` |
 | 5 | `Duplicate environment variable name: "SECRET_KEY"` (build #4) | Same variable twice in `environment { }`, pushed before fixing | Remove the duplicate, commit, push |
+| 9 | `permission denied while trying to connect to the docker API at unix:///var/run/docker.sock` (06/10/2026) | Moved from Docker Desktop to Docker Engine in WSL: socket group is now GID 986, but the Jenkins compose file had `group_add: "0"` | Back up `jenkins_home`, set `group_add: "986"` in `Desktop/jenkins/docker-compose.yml`, `docker compose up -d` (details: `DOCKER_LOG.md` Step 6) |
