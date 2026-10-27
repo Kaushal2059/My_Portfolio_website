@@ -1,0 +1,19 @@
+apiVersion: apps/v1                  # Which API group and version. Deployments live in "apps", so this must be apps/v1
+kind: Deployment                # The type of object
+metadata:                       # Facts ABOUT the Deployment
+  name: hello-deployment        # Its name. The ReplicaSet and Pods get names built from it
+spec:                           # OUTER spec: what the Deployment must keep true
+  replicas: 3                   # Always keep 3 Pods running
+  selector:                     # How the Deployment recognises its own Pods
+    matchLabels:
+      app: hello                # Any Pod labelled app: hello counts as one of its Pods
+  template:                     # The blueprint for every Pod it creates
+    metadata:
+      labels:
+        app: hello              # Put on every new Pod. Must match the selector above
+    spec:                       # INNER spec: what runs inside each Pod
+      containers:               # A list, because one Pod can hold several containers
+        - name: hello-container # The container's name inside the Pod
+          image: nginx          # Unpinned, so it means nginx:latest. Use nginx:1.30.6-alpine
+          ports:
+            - containerPort: 80 # Records that nginx listens on port 80. Opens nothing by itself

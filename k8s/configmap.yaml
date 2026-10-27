@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portfolio-config
+  namespace: portfolio
+data:
+  DEBUG: "False"
+  ALLOWED_HOSTS: "localhost,127.0.0.1"
+  CSRF_TRUSTED_ORIGINS: "http://localhost:8000"
+  DB_NAME: "portfolio_db"
+  POSTGRES_DB: "portfolio_db"
+  DB_USER: "portfolio_user"
+  POSTGRES_USER: "portfolio_user"
+  DB_HOST: "db"
+  DB_PORT: "5432"
